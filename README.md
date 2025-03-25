@@ -79,6 +79,21 @@ foreach($model in $models) {
 }
 ```
 
+### Generate Chat Completions - Return Text Only
+```powershell
+# Import the module
+Import-Module PSAISuite
+
+$message = New-ChatMessage -Prompt "What is the capital of France?"
+Invoke-ChatCompletion -Message $message -TextOnly
+# or by setting the environment variable
+
+$env:PSAISUITE_TEXT_ONLY=$true
+$message = New-ChatMessage -Prompt "What is the capital of France?"
+Invoke-ChatCompletion -Message $message 
+
+```
+
 Note that the model name in the Invoke-ChatCompletion call uses the format - `<provider>:<model-name>`.
 
 ## Adding support for a provider

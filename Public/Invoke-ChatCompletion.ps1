@@ -105,7 +105,7 @@ function Invoke-ChatCompletion {
     }
     
     # Return the result based on the TextOnly switch
-    if ($TextOnly) {
+    if ($TextOnly -or [System.Convert]::ToBoolean($env:PSAISUITE_TEXT_ONLY)) {
         # Format the text output to include the elapsed time if requested
         if ($IncludeElapsedTime) {
             return "$responseText`n`nElapsed Time: $($elapsedTime.ToString('hh\:mm\:ss\.fff'))"
