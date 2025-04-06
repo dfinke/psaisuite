@@ -23,7 +23,8 @@
     FunctionsToExport = @(
         'Get-ChatProviders',
         'Invoke-ChatCompletion',
-        "New-ChatMessage"
+        'Invoke-LLM',
+        'New-ChatMessage'
     )
     
     # Cmdlets to export from this module
