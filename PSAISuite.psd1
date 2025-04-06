@@ -34,7 +34,9 @@
     VariablesToExport = @()
     
     # Aliases to export from this module
-    AliasesToExport   = @()
+    AliasesToExport   = @(
+        'LLM'
+    )
     
     # Private data to pass to the module specified in RootModule/ModuleToProcess
     PrivateData       = @{
