@@ -9,4 +9,4 @@ $models = $(
     'gemini:gemini-2.5-pro-exp-03-25'
 )
 
-$code | Invoke-LLM explain -Models $models | Select-Object timestamp, model, response 
+$code | llm explain -Models $models | Select-Object timestamp, model, response 
