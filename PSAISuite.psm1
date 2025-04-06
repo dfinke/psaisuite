@@ -15,4 +15,4 @@ foreach ($import in @($Public + $Providers)) {
 }
 
 # Export public functions
-Export-ModuleMember -Function $Public.BaseName
+# Export-ModuleMember -Function $Public.BaseName
