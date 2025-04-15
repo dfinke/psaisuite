@@ -62,3 +62,46 @@ function Invoke-GroqProvider {
         return "Error calling Groq API: $($_.Exception.Message)"
     }
 }
+
+function Get-GroqModel {
+    <#
+    .SYNOPSIS
+        Retrieves the list of available models from the Groq API.
+
+    .DESCRIPTION
+        This function sends a request to the Groq API to retrieve the list of available models.
+        It requires an API key to be set in the environment variable 'GROQ_API_KEY'.
+
+    .EXAMPLE
+        $models = Get-GroqModel
+        $models | Sort-Object
+
+    .NOTES
+        Requires the GROQ_API_KEY environment variable to be set with a valid API key.
+        API Reference: https://console.groq.com/docs/api-reference
+    #>
+    
+    [CmdletBinding()]
+    param()
+
+    if (-not $env:GROQ_API_KEY) {
+        Write-Error "GROQ_API_KEY environment variable is not set. Please set it with your API key."
+        return
+    }
+
+    $headers = @{
+        "Authorization" = "Bearer $env:GROQ_API_KEY"
+        "Content-Type"  = "application/json"
+    }
+
+    try {
+        $response = Invoke-RestMethod -Uri "https://api.groq.com/openai/v1/models" -Headers $headers -Method Get
+        return $response.data.id
+    }
+    catch {
+        $statusCode = $_.Exception.Response.StatusCode.value__
+        $errorMessage = $_.ErrorDetails.Message
+        Write-Error "Groq API Error (HTTP $statusCode): $errorMessage"
+        return $null
+    }
+}

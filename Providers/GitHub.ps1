@@ -66,3 +66,40 @@ function Invoke-GitHubProvider {
         return "Error calling GitHub Models API: $($_.Exception.Message)"
     }
 }
+
+
+<#
+.SYNOPSIS
+    Gets a list of available GitHub AI models.
+
+.DESCRIPTION
+    The Get-GitHubModel function retrieves all available models from the GitHub Models API endpoint.
+    It requires a GitHub token to be set in the environment variable 'GITHUB_TOKEN'.
+
+.EXAMPLE
+    Get-GitHubModel
+
+.NOTES
+    Uses the same endpoint as the Invoke-GitHubProvider function.
+#>
+function Get-GitHubModel {
+    [CmdletBinding()]
+    param()
+
+    if (-not $env:GITHUB_TOKEN) {
+        Write-Error "Please set the GITHUB_TOKEN environment variable with a valid GitHub token."
+        return
+    }
+
+    $headers = @{
+        "Authorization" = "Bearer $($env:GITHUB_TOKEN)"
+    }
+
+    try {
+        $response = Invoke-RestMethod -Uri "https://models.inference.ai.azure.com/models" -Headers $headers
+        return $response.name
+    }
+    catch {
+        Write-Error "Failed to retrieve GitHub models: $($_.Exception.Message)"
+    }
+}
