@@ -3,7 +3,7 @@
     RootModule        = 'PSAISuite.psm1'
     
     # Version number of this module.
-    ModuleVersion     = '0.2.5'
+    ModuleVersion     = '0.2.6'
     
     # ID used to uniquely identify this module
     GUID              = 'f5a37b81-6a5a-4b5c-a6e1-2b8a5f9c2fd8'
@@ -21,8 +21,9 @@
     
     # Functions to export from this module
     FunctionsToExport = @(
-        'Get-ChatProviders',
-        'Invoke-ChatCompletion',
+        'Get-ChatProviders'
+        'Get-Models'
+        'Invoke-ChatCompletion'
         "New-ChatMessage"
     )
     
