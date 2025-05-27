@@ -38,9 +38,9 @@ Describe "Invoke-ChatCompletion" {
             $commonParameters = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
             $filteredParameters = $parameters | Where-Object { $commonParameters -notcontains $_.Name }
 
-            $filteredParameters.Count | Should -Be 5
+            $filteredParameters.Count | Should -Be 6
 
-            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "TextOnly", "IncludeElapsedTime")
+            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "TextOnly", "IncludeElapsedTime", "Functions")
         }
 
         It "Should test Context parameter is valueFromPipeline" {
@@ -173,6 +173,13 @@ Describe "Invoke-ChatCompletion" {
             $message = New-ChatMessage -Prompt "Test"
             { Invoke-ChatCompletion -Message $message -Model "nonexistent:model" } | 
             Should -Throw "Unsupported provider: nonexistent. No function named Invoke-nonexistentProvider found."
+        }
+    }
+
+    Context "Function calling" {
+        It "Has Functions parameter" {
+            $parameters = (Get-Command Invoke-ChatCompletion).Parameters
+            $parameters.ContainsKey('Functions') | Should -Be $true
         }
     }
 }

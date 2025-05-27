@@ -5,12 +5,16 @@
 .DESCRIPTION
     The Invoke-XAIProvider function sends requests to the xAI API and returns the generated content.
     It requires an API key to be set in the environment variable 'xAIKey'.
+    Supports function calling when the Functions parameter is provided.
 
 .PARAMETER ModelName
     The name of the xAI model to use (e.g., 'grok-1').
 
 .PARAMETER Messages
     An array of hashtables containing the messages to send to the model.
+
+.PARAMETER Functions
+    Optional. An array of function definitions that the model can call.
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Explain quantum computing'
@@ -25,7 +29,9 @@ function Invoke-XAIProvider {
         [Parameter(Mandatory)]
         [string]$ModelName,
         [Parameter(Mandatory)]
-        [hashtable[]]$Messages
+        [hashtable[]]$Messages,
+        [Parameter()]
+        [array]$Functions
     )
     
     $headers = @{
@@ -36,6 +42,11 @@ function Invoke-XAIProvider {
     $body = @{
         'model'    = $ModelName
         'messages' = $Messages
+    }
+
+    # Add functions to the request if provided
+    if ($Functions) {
+        $body['functions'] = $Functions
     }
 
     $Uri = "https://api.x.ai/v1/chat/completions"
@@ -49,7 +60,17 @@ function Invoke-XAIProvider {
     
     try {
         $response = Invoke-RestMethod @params
-        return $response.choices[0].message.content
+        
+        # Check if the response contains a function call
+        $message = $response.choices[0].message
+        if ($message.PSObject.Properties.Name -contains 'function_call') {
+            # Return the entire message object including function_call
+            return $message
+        }
+        else {
+            # Return just the content for backward compatibility
+            return $message.content
+        }
     }
     catch {
         $statusCode = $_.Exception.Response.StatusCode.value__
