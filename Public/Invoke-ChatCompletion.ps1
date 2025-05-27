@@ -25,6 +25,9 @@ the response text, model information, and timestamp is returned.
 .PARAMETER IncludeElapsedTime
 A switch parameter that, if specified, measures and includes the elapsed time of the API request in the output.
 
+.PARAMETER Functions
+An array of function definitions that the model can call. Each function should be a hashtable with the schema following the OpenAI function calling format.
+
 .EXAMPLE
 $Message = New-ChatMessage -Prompt "Hello, world!"
 Invoke-ChatCompletion -Messages $Message -Model "openai:gpt-4o-mini"
@@ -69,7 +72,10 @@ function Invoke-ChatCompletion {
         [object]$Context, # Changed from [string] to [object]
     
         [switch]$TextOnly,
-        [switch]$IncludeElapsedTime
+        [switch]$IncludeElapsedTime,
+        
+        [Parameter()]
+        [array]$Functions
     )
 
     Begin {
@@ -152,8 +158,61 @@ function Invoke-ChatCompletion {
         if ($SystemRole) {
             $functionParams.SystemRole = $SystemRole
         }
+        
+        if ($Functions) {
+            $functionParams.Functions = $Functions
+        }
 
-        $responseText = & $providerFunction @functionParams
+        $response = & $providerFunction @functionParams
+
+        # Handle function calls if present
+        if ($response -is [hashtable] -and $response.PSObject.Properties.Name -contains 'function_call') {
+            # Extract function call details
+            $functionCall = $response.function_call
+            $functionName = $functionCall.name
+            $functionArgs = $functionCall.arguments | ConvertFrom-Json
+
+            Write-Verbose "Function call detected: $functionName"
+            
+            # Check if the function exists in PowerShell
+            if (Get-Command $functionName -ErrorAction SilentlyContinue) {
+                try {
+                    # Execute the PowerShell function
+                    $functionResult = & $functionName @functionArgs
+                    
+                    # Add the function result as a message
+                    $functionResponseMessage = @{
+                        'role' = 'function'
+                        'name' = $functionName
+                        'content' = $functionResult | ConvertTo-Json
+                    }
+                    
+                    # Add the original message and function result to the conversation
+                    $updatedMessages = $finalMessages + @($response) + @($functionResponseMessage)
+                    
+                    # Make another call to the model with the function result
+                    $functionParams.Messages = $updatedMessages
+                    
+                    # Make the follow-up call
+                    $response = & $providerFunction @functionParams
+                    
+                    # Now the response should be regular content
+                    $responseText = if ($response -is [hashtable]) { $response.content } else { $response }
+                } 
+                catch {
+                    Write-Error "Error executing function '$functionName': $_"
+                    $responseText = "Error executing function: $_"
+                }
+            }
+            else {
+                Write-Warning "Function '$functionName' not found in PowerShell context"
+                $responseText = "Function call to '$functionName' was requested, but the function is not available."
+            }
+        }
+        else {
+            # Handle normal responses
+            $responseText = if ($response -is [hashtable]) { $response.content } else { $response }
+        }
 
         # Stop measuring execution time if requested
         if ($IncludeElapsedTime) {
@@ -180,6 +239,11 @@ function Invoke-ChatCompletion {
                 Provider  = $provider
                 ModelName = $modelName
                 Timestamp = Get-Date
+            }
+
+            # Add function call information if present
+            if ($response -is [hashtable] -and $response.PSObject.Properties.Name -contains 'function_call') {
+                $responseObject | Add-Member -MemberType NoteProperty -Name 'FunctionCall' -Value $response.function_call
             }
 
             # Add elapsed time if requested
