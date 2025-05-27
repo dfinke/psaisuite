@@ -58,7 +58,7 @@ $userMessage = @{
 Write-Host "Calling xAI with function definitions..." -ForegroundColor Yellow
 
 # Note: This requires xAIKey environment variable to be set
-$response = Invoke-ChatCompletion -Messages $userMessage -Model "xAI:grok-1" -Functions $functionDefinitions
+$response = Invoke-ChatCompletion -Messages $userMessage -Model xAI:grok-3-fast -Functions $functionDefinitions
 
 Write-Host "Response:" -ForegroundColor Green
 $response
