@@ -16,6 +16,7 @@ Currently supported providers are:
 
 - [Anthropic](guides/antrhopic.md)
 - [Azure AI Foundry](guides/azureai.md)
+- [CursorAI](guides/cursorai.md)
 - [DeepSeek](guides/deepseek.md)
 - [GitHub](guides/github.md)
 - [Google](guides/google.md)
@@ -49,6 +50,7 @@ Set the API keys.
 ```powershell
 $env:OpenAIKey="your-openai-api-key"
 $env:AnthropicKey="your-anthropic-api-key"
+$env:CursorAIKey="your-cursorai-api-key"
 $env:NebiusKey="your-nebius-api-key"
 $env:GITHUB_TOKEN="your-github-token" # Add GitHub token
 # ... and so on for other providers
@@ -62,6 +64,23 @@ You will need to set the `AzureAIKey` and `AzureAIEndpoint` environment variable
 $env:AzureAIKey = "your-azure-ai-key"
 $env:AzureAIEndpoint = "your-azure-ai-endpoint"
 ```
+
+### CursorAI with Privacy Mode
+
+CursorAI supports privacy-focused AI interactions. You need to set the `CursorAIKey` environment variable, and optionally the `CursorAIEndpoint` for privacy mode.
+
+```powershell
+$env:CursorAIKey = "your-cursorai-api-key"
+
+# Optional: Use custom endpoint for privacy mode
+$env:CursorAIEndpoint = "your-private-cursor-endpoint"
+```
+
+**Privacy Mode Features:**
+- Secure API endpoints for sensitive data handling
+- Local processing capabilities when configured with custom endpoints
+- Enterprise-grade privacy and security compliance
+- Support for various models (GPT-4, Claude, etc.) through Cursor's privacy infrastructure
 
 ## Usage
 
@@ -105,7 +124,7 @@ Get-ChatProviders
 # Import the module
 Import-Module PSAISuite
 
-$models = @("openai:gpt-4o", "anthropic:claude-3-5-sonnet-20240620", "azureai:gpt-4o", "nebius:meta-llama/Llama-3.3-70B-Instruct")
+$models = @("openai:gpt-4o", "anthropic:claude-3-5-sonnet-20240620", "cursorai:gpt-4", "azureai:gpt-4o", "nebius:meta-llama/Llama-3.3-70B-Instruct")
 
 $message = New-ChatMessage -Prompt "What is the capital of France?"
 
