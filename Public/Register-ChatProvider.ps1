@@ -178,8 +178,16 @@ function Invoke-#PROVIDER_NAME#Provider {
 
     end {
         if (-NOT $FileExists) {
-            Write-Warning "As you are registering this Provider for the first time, please note that you will need to run the following commands:"
-            Write-Warning "  Remove-Module PSAISuite; Import-Module PSAISuite"
+            $ShouldAutoReloadModule = $Host.UI.PromptForChoice(
+                "New Provider Warning",
+                "As you are registering this Provider for the first time, please note that you will need to execute the following commands:`n - Remove-Module PSAISuite`n - Import-Module PSAISuite`n`nWould you like to perform this task automatically?",
+                @('&No','&Yes'),
+                1
+            )
+            if ($ShouldAutoReloadModule) {
+                Remove-Module PSAISuite
+                Import-Module PSAISuite
+            }
         }
     }
 }
