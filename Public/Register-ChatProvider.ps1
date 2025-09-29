@@ -45,43 +45,15 @@
 
 function Register-ChatProvider {
     param(
-        [Parameter(Mandatory, Position=0)]
-        [ValidatePattern('[A-Za-z0-9]+')]
-        [String]
-        $ProviderName,
-
-        [Parameter(Mandatory, Position=1)]
-        [URI]
-        $BaseUri,
-
-        [Parameter(Mandatory, Position=2)]
-        [String]
-        $ModelName,
-
-        [Parameter()]
-        [HashTable]
-        $ExtraHeaders,
-
-        [Parameter()]
-        [HashTable]
-        $ExtraBody,
-
-        [Parameter()]
-        [ValidatePattern('/')]
-        [String]
-        $ContentType = 'application/json',
-
-        [Parameter()]
-        [Net.HTTP.HTTPMethod]
-        $Method = 'POST',
-
-        [Parameter()]
-        [String]
-        $APIReference = 'https://docs.example.ai',
-
-        [Parameter()]
-        [Switch]
-        $Force
+        [Parameter(Mandatory, Position=0)][ValidatePattern('[A-Za-z0-9]+')][String]$ProviderName,
+        [Parameter(Mandatory, Position=1)][URI]$BaseUri,
+        [Net.HTTP.HTTPMethod]$Method = 'POST',
+        [ValidatePattern('/')][String]$ContentType = 'application/json',
+        [HashTable]$ExtraHeaders,
+        [HashTable]$ExtraBody,
+        [String]$APIReference = 'https://docs.example.ai',
+        [String]$ModelName = 'marvin-42b',
+        [Switch]$Force
     )
 
     begin {
