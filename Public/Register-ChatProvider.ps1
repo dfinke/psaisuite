@@ -7,8 +7,13 @@
     This provider can then be used for interacting with custom, third-party LLM providers.
     It requires an API key to be set in the environment variable 'PROVIDER_NAMEKey' (e.g. for OpenAICustom it would be $env:OpenAICustomKey).
 
-.Parameter ProviderName
+.PARAMETER ProviderName
     The name of the Provider to use, should be one word, TitleCase (e.g. OpenAICustom, PerplexityBeta, LMStudio)
+
+.PARAMETER BaseUri
+    The base URI for the Provider to connect to. Should be a valid URI (containing a protocol, hostname, and optional port and path.)
+    Note that this parameter allows for configurations on a non-standard base endpoint, such as the service using HTTP,
+    behind a reverse proxy, or hosted on an unusual port.
 
 .PARAMETER ModelName
     The name of the Model to use for (e.g., 'gpt-5', 'llama-3-sonar-small-32k', 'sonar-medium-online', 'mistral-7b-instruct').
