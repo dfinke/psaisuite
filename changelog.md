@@ -1,3 +1,9 @@
+# v0.5.3
+
+- Thank you to Daniel Bradley [GitHub](https://github.com/DanielBradley1), [X](https://x.com/DanielatOCN)
+
+    - Update environment variable name for Groq API key from `GROQ_API_KEY` to `GROQ_KEY` for consistency.
+
 # v0.5.2
 
 - Invoke-ChatCompletion:
