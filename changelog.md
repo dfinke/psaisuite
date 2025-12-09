@@ -1,4 +1,4 @@
-# v0.5.3
+# v0.5.4
 
 - Thank you to Daniel Bradley [GitHub](https://github.com/DanielBradley1), [X](https://x.com/DanielatOCN)
 
