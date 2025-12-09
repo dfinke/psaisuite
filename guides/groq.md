@@ -3,7 +3,7 @@
 To use Groq with `psaisuite` you will need to [create a free account](https://console.groq.com/). Once logged in, go to the [API Keys](https://console.groq.com/keys) section in your account settings and generate a new Groq API key. Once you have your key, add it to your environment as follows:
 
 ```shell
-$env:GroqKey = "your-groq-api-key"
+$env:GROQ_API_KEY = "your-groq-api-key"
 ```
 
 ## Create a Chat Completion
