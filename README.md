@@ -21,6 +21,7 @@ Currently supported providers are:
 - [Google](guides/google.md)
 - [Groq](guides/groq.md)
 - [Inception](guides/inception.md)
+- [LM Studio](guides/lmstudio.md)
 - [Mistral](guides/mistral.md)
 - [Nebius](guides/nebius.md)
 - [Ollama](guides/ollama.md)
