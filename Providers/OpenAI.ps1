@@ -40,6 +40,19 @@ function Invoke-OpenAIProvider {
         'messages' = $Messages
     }
 
+
+    # Add 'response_format' only if $JsonSchema is not empty
+    if ($JsonSchema -and $JsonSchema.Count -gt 0) {
+        $body['response_format'] = @{
+            type = "json_schema"
+            json_schema = @{
+                name = "user_schema"      # schema name
+                strict = $true            # JSON strict mode on
+                schema = $JsonSchema
+            }
+        }
+    }
+
     $Uri = "https://api.openai.com/v1/chat/completions"
     
     $params = @{

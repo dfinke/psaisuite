@@ -25,6 +25,10 @@ A switch parameter that, if specified, measures and includes the elapsed time of
 .PARAMETER Raw
 A switch parameter that, if specified, returns the full response object (PSCustomObject) instead of just the response text.
 
+.PARAMETER Raw
+Optional parameter to generate Structured Output response according to JSON Schema in it.
+
+
 .EXAMPLE
 $Message = New-ChatMessage -Prompt "Hello, world!"
 Invoke-ChatCompletion -Messages $Message -Model "openai:gpt-4o-mini"
@@ -82,7 +86,8 @@ function Invoke-ChatCompletion {
         [object]$Context,
 
         [switch]$IncludeElapsedTime,
-        [switch]$Raw
+        [switch]$Raw,
+        [hashtable]$JsonSchema
     )
 
     Begin {
@@ -171,6 +176,10 @@ function Invoke-ChatCompletion {
 
         if ($SystemRole) {
             $functionParams.SystemRole = $SystemRole
+        }
+
+        if ($JsonSchema) {
+            $functionParams.JsonSchema = $JsonSchema
         }
 
         $responseText = & $providerFunction @functionParams
