@@ -30,17 +30,19 @@ function Invoke-OpenAIProvider {
     )
     
     $headers = @{
-        'OpenAI-Beta'   = 'assistants=v2'
         'Authorization' = "Bearer $env:OpenAIKey"        
         'content-type'  = 'application/json'
     }
     
+    # Convert messages to string prompt for Responses API
+    $prompt = ($Messages | Where-Object { $_.role -eq 'user' } | ForEach-Object { $_.content }) -join "`n"
+    
     $body = @{
-        'model'    = $ModelName
-        'messages' = $Messages
+        'model' = $ModelName
+        'input' = $prompt
     }
 
-    $Uri = "https://api.openai.com/v1/chat/completions"
+    $Uri = "https://api.openai.com/v1/responses"
     
     $params = @{
         Uri     = $Uri
@@ -51,7 +53,14 @@ function Invoke-OpenAIProvider {
     
     try {
         $response = Invoke-RestMethod @params
-        return $response.choices[0].message.content
+        # For Responses API, find the message output and extract text
+        if ($response.status -eq "completed" -and $response.output) {
+            $messageOutput = $response.output | Where-Object { $_.type -eq "message" } | Select-Object -First 1
+            if ($messageOutput -and $messageOutput.content -and $messageOutput.content[0].text) {
+                return $messageOutput.content[0].text
+            }
+        }
+        return "No text content found in response. Full response: $($response | ConvertTo-Json -Depth 5)"
     }
     catch {
         $statusCode = $_.Exception.Response.StatusCode.value__
