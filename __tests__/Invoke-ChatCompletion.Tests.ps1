@@ -38,8 +38,8 @@ Describe "Invoke-ChatCompletion" {
             $commonParameters = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
             $filteredParameters = $parameters | Where-Object { $commonParameters -notcontains $_.Name }
 
-            $filteredParameters.Count | Should -Be 5
-            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "IncludeElapsedTime", "Raw")
+            $filteredParameters.Count | Should -Be 6
+            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "IncludeElapsedTime", "Raw")
         }
 
         It "Should test Context parameter is valueFromPipeline" {

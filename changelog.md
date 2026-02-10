@@ -1,3 +1,12 @@
+# v0.6.0
+
+- OpenAI provider migrated to use the new Responses API endpoint for improved functionality and future compatibility.
+- Added tool/function calling support across the module:
+  - New `-Tools` parameter in `Invoke-ChatCompletion` for specifying tool definitions.
+  - OpenAI provider now supports function calling with automatic tool execution.
+- Added `Invoke-WebSearch` tool using Tavily API for web search capabilities.
+- Updated tests and documentation to reflect new tool support features.
+
 # v0.5.4
 
 - Thank you to Daniel Bradley [GitHub](https://github.com/DanielBradley1), [X](https://x.com/DanielatOCN)
