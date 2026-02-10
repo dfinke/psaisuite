@@ -12,60 +12,137 @@
 .PARAMETER Messages
     An array of hashtables containing the messages to send to the model.
 
+.PARAMETER Tools
+    An array of tool definitions for function calling.
+
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
     $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Message $Message
     
+.EXAMPLE
+    $tools = Register-Tool "Get-ChildItem"
+    $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $messages -Tools $tools
+
 .NOTES
     Requires the OpenAIKey environment variable to be set with a valid API key.
-    Includes 'assistants=v2' beta header for compatibility with newer API features.
-    API Reference: https://platform.openai.com/docs/api-reference
+    Uses OpenAI's Responses API for all models.
+    API Reference: https://platform.openai.com/docs/api-reference/responses
 #>
 function Invoke-OpenAIProvider {
     param(
         [Parameter(Mandatory)]
         [string]$ModelName,
         [Parameter(Mandatory)]
-        [hashtable[]]$Messages
+        [hashtable[]]$Messages,
+        [hashtable[]]$Tools
     )
     
     $headers = @{
-        'Authorization' = "Bearer $env:OpenAIKey"        
+        'Authorization' = "Bearer $env:OpenAIKey"
+        'OpenAI-Beta'   = 'responses=v1'
         'content-type'  = 'application/json'
     }
     
-    # Convert messages to string prompt for Responses API
-    $prompt = ($Messages | Where-Object { $_.role -eq 'user' } | ForEach-Object { $_.content }) -join "`n"
+    $Uri = "https://api.openai.com/v1/responses"
     
     $body = @{
         'model' = $ModelName
-        'input' = $prompt
+        'input' = $Messages
     }
-
-    $Uri = "https://api.openai.com/v1/responses"
-    
-    $params = @{
-        Uri     = $Uri
-        Method  = 'POST'
-        Headers = $headers
-        Body    = $body | ConvertTo-Json -Depth 10
+    # Add tools if provided - convert from Chat Completions format to Responses API format
+    if ($Tools) {
+        $body['tools'] = @($Tools | ForEach-Object {
+                @{
+                    type        = 'function'
+                    name        = $_.function.name
+                    description = $_.function.description
+                    parameters  = $_.function.parameters
+                }
+            })
     }
     
-    try {
-        $response = Invoke-RestMethod @params
-        # For Responses API, find the message output and extract text
-        if ($response.status -eq "completed" -and $response.output) {
-            $messageOutput = $response.output | Where-Object { $_.type -eq "message" } | Select-Object -First 1
-            if ($messageOutput -and $messageOutput.content -and $messageOutput.content[0].text) {
-                return $messageOutput.content[0].text
+    $maxIterations = 5
+    $iteration = 0
+    
+    while ($iteration -lt $maxIterations) {
+        $params = @{
+            Uri     = $Uri
+            Method  = 'POST'
+            Headers = $headers
+            Body    = $body | ConvertTo-Json -Depth 10
+        }
+        
+        try {
+            $response = Invoke-RestMethod @params
+            
+            # Check if the response contains an error
+            if ($response.error) {
+                Write-Error $response.error.message
+                return "Error: $($response.error.message)"
+            }
+            
+            # Check if output exists
+            if (!$response.output) {
+                return "No output in response from API."
+            }
+            
+            # Check for function calls in the response output
+            $functionCalls = $response.output | Where-Object { $_.type -eq 'function_call' }
+            
+            if ($functionCalls) {
+                # Add all response output items to the input for context
+                $body.input += $response.output
+                
+                # Execute function calls and add results
+                foreach ($call in $functionCalls) {
+                    $functionName = $call.name
+                    $functionArgs = $call.arguments | ConvertFrom-Json
+                    
+                    try {
+                        if (Get-Command $functionName -ErrorAction SilentlyContinue) {
+                            $result = & $functionName @functionArgs
+                        }
+                        else {
+                            $result = "Function $functionName not found"
+                        }
+                    }
+                    catch {
+                        $result = "Error executing $functionName`: $($_.Exception.Message)"
+                    }
+                    
+                    $body.input += @{
+                        type    = 'function_call_output'
+                        call_id = $call.call_id
+                        output  = $result | Out-String
+                    }
+                }
+            }
+            else {
+                # No function calls, extract text from message output items
+                # Responses API returns: output[].type='message', output[].content[].type='output_text'
+                $textOutput = ($response.output | Where-Object { $_.type -eq 'message' } | ForEach-Object {
+                        if ($_.content -is [array]) {
+                            ($_.content | Where-Object { $_.type -eq 'output_text' } | ForEach-Object { $_.text }) -join ''
+                        }
+                        elseif ($_.content) {
+                            $_.content
+                        }
+                    }) -join ''
+                if (!$textOutput) {
+                    return "No text content in response."
+                }
+                return $textOutput
             }
         }
-        return "No text content found in response. Full response: $($response | ConvertTo-Json -Depth 5)"
+        catch {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+            $errorMessage = $_.ErrorDetails.Message
+            Write-Error "OpenAI API Error (HTTP $statusCode): $errorMessage"
+            return "Error calling OpenAI API: $($_.Exception.Message)"
+        }
+        
+        $iteration++
     }
-    catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
-        $errorMessage = $_.ErrorDetails.Message
-        Write-Error "OpenAI API Error (HTTP $statusCode): $errorMessage"
-        return "Error calling OpenAI API: $($_.Exception.Message)"
-    }
+    
+    return "Maximum iterations reached without completing the response."
 }
