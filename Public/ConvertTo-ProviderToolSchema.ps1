@@ -36,7 +36,7 @@ function ConvertTo-ProviderToolSchema {
         [object[]]$Tools,
 
         [Parameter(Mandatory)]
-        [ValidateSet('openai', 'anthropic')]
+        [ValidateSet('openai', 'anthropic', 'google')]
         [string]$Provider,
 
         [switch]$PassThru
@@ -137,6 +137,13 @@ function ConvertTo-ProviderToolSchema {
                         name         = $name
                         description  = $description
                         input_schema = $parameters
+                    }
+                }
+                'google' {
+                    $results += [ordered]@{
+                        name        = $name
+                        description = $description
+                        parameters  = $parameters
                     }
                 }
                 default {
