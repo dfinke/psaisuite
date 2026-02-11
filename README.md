@@ -139,7 +139,7 @@ $customTool = @{
 Invoke-ChatCompletion -Messages "What's the weather in New York?" -Tools $customTool -Model "openai:gpt-4o"
 ```
 
-Currently, tool calling is supported for the OpenAI, xAI, and Anthropic providers. Support for other providers will be added in future updates.
+Currently, tool calling is supported for the OpenAI, xAI, Anthropic, and Google providers. Support for other providers will be added in future updates.
 
 Using `PSAISuite` to generate chat completion responses from different providers.
 
