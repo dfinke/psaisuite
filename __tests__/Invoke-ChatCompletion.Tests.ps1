@@ -47,6 +47,11 @@ Describe "Invoke-ChatCompletion" {
             $actual.Parameters.Context | Should -Not -BeNullOrEmpty
             $actual.Parameters.Context.Attributes.ValueFromPipeline | Should -Be $true
         }
+
+        It "Should accept Tools parameter" {
+            $actual = (Get-Command Invoke-ChatCompletion)
+            $actual.Parameters.Tools | Should -Not -BeNullOrEmpty
+        }
     }
 
     Context "Basic functionality" {
@@ -150,6 +155,58 @@ Describe "Invoke-ChatCompletion" {
             $message = New-ChatMessage -Prompt "Test"
             { Invoke-ChatCompletion -Messages $message -Model "nonexistent:model" } | 
             Should -Throw "Unsupported provider: nonexistent. No function named Invoke-nonexistentProvider found."
+        }
+    }
+
+    Context "Tool calling functionality" {
+        BeforeEach {
+            Mock -ModuleName PSAISuite ConvertTo-ProviderToolSchema { 
+                param($Tools, $Provider)
+                return $Tools | ForEach-Object {
+                    if ($_.Name) {
+                        @{
+                            type     = "function"
+                            function = @{
+                                name        = $_.Name
+                                description = $_.Description
+                                parameters  = $_.Parameters
+                            }
+                        }
+                    }
+                    else {
+                        $_
+                    }
+                }
+            }
+        }
+
+        It "Accepts string tools and processes them" -Skip:(!(Get-Command Register-Tool -ErrorAction SilentlyContinue)) {
+            $message = New-ChatMessage -Prompt "List files"
+            $result = Invoke-ChatCompletion -Messages $message -Model "openai:gpt-4o-mini" -Tools "Get-ChildItem" -Raw
+            $result | Should -BeOfType [PSCustomObject]
+        }
+
+        It "Accepts hashtable tools" {
+            $customTool = @{
+                Name        = "Test-Tool"
+                Description = "A test tool"
+                Parameters  = @{
+                    type       = "object"
+                    properties = @{
+                        input = @{ type = "string"; description = "Input parameter" }
+                    }
+                    required   = @("input")
+                }
+            }
+            $message = New-ChatMessage -Prompt "Use test tool"
+            $result = Invoke-ChatCompletion -Messages $message -Model "openai:gpt-4o-mini" -Tools $customTool -Raw
+            $result | Should -BeOfType [PSCustomObject]
+        }
+
+        It "Handles multiple tools" -Skip:(!(Get-Command Register-Tool -ErrorAction SilentlyContinue)) {
+            $message = New-ChatMessage -Prompt "Use multiple tools"
+            $result = Invoke-ChatCompletion -Messages $message -Model "openai:gpt-4o-mini" -Tools @("Get-ChildItem", "Get-Process") -Raw
+            $result | Should -BeOfType [PSCustomObject]
         }
     }
 }
