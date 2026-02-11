@@ -36,7 +36,7 @@ function ConvertTo-ProviderToolSchema {
         [object[]]$Tools,
 
         [Parameter(Mandatory)]
-        [ValidateSet('openai')]
+        [ValidateSet('openai', 'anthropic')]
         [string]$Provider,
 
         [switch]$PassThru
@@ -54,7 +54,7 @@ function ConvertTo-ProviderToolSchema {
                 [string]$Key
             )
 
-            if ($Tool -is [hashtable]) {
+            if ($Tool -is [System.Collections.IDictionary]) {
                 foreach ($toolKey in $Tool.Keys) {
                     if ($toolKey -ieq $Key) {
                         return $Tool[$toolKey]
@@ -94,13 +94,27 @@ function ConvertTo-ProviderToolSchema {
 
             $toolType = Get-ToolValue -Tool $tool -Key 'type'
             if ($toolType -eq 'function') {
-                $results += $tool
-                continue
+                if ($Provider -eq 'openai') {
+                    $results += $tool
+                    continue
+                }
+                # For non-OpenAI providers, extract from the function block
+                $functionDef = Get-ToolValue -Tool $tool -Key 'function'
+                if ($functionDef) {
+                    $name = Get-ToolValue -Tool $functionDef -Key 'name'
+                    $description = Get-ToolValue -Tool $functionDef -Key 'description'
+                    $parameters = Get-ToolValue -Tool $functionDef -Key 'parameters'
+                }
+                else {
+                    Write-Warning "Skipping tool: type is 'function' but no function definition found."
+                    continue
+                }
             }
-
-            $name = Get-ToolValue -Tool $tool -Key 'Name'
-            $description = Get-ToolValue -Tool $tool -Key 'Description'
-            $parameters = Get-ToolValue -Tool $tool -Key 'Parameters'
+            else {
+                $name = Get-ToolValue -Tool $tool -Key 'Name'
+                $description = Get-ToolValue -Tool $tool -Key 'Description'
+                $parameters = Get-ToolValue -Tool $tool -Key 'Parameters'
+            }
 
             if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($description) -or $null -eq $parameters) {
                 Write-Warning "Skipping tool because Name, Description, or Parameters is missing."
@@ -116,6 +130,13 @@ function ConvertTo-ProviderToolSchema {
                             description = $description
                             parameters  = $parameters
                         }
+                    }
+                }
+                'anthropic' {
+                    $results += [ordered]@{
+                        name         = $name
+                        description  = $description
+                        input_schema = $parameters
                     }
                 }
                 default {
