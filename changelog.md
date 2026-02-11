@@ -6,6 +6,7 @@
   - OpenAI provider now supports function calling with automatic tool execution.
 - Added `Invoke-WebSearch` tool using Tavily API for web search capabilities.
 - Updated tests and documentation to reflect new tool support features.
+- Added tool/function calling support for the xAI provider (chat completions).
 
 # v0.5.4
 
