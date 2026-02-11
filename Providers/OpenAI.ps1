@@ -116,11 +116,11 @@ function Invoke-OpenAIProvider {
                             $result = & $functionName @functionArgs
                         }
                         else {
-                            $result = "Function $functionName not found"
+                            $result = "Error: Function $functionName not found"
                         }
                     }
                     catch {
-                        $result = "Error executing $functionName`: $($_.Exception.Message)"
+                        $result = "Error: $($_.Exception.Message)"
                     }
                     
                     $body.input += @{
