@@ -26,6 +26,7 @@
         'New-ChatMessage'
         'Get-OpenRouterModel'
         'Get-GitHubModel'
+        'ConvertTo-ProviderToolSchema'
     )
     
     # Cmdlets to export from this module
