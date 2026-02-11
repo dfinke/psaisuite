@@ -13,15 +13,14 @@
     An array of hashtables containing the messages to send to the model.
 
 .PARAMETER Tools
-    An array of tool definitions for function calling.
+    An array of tool definitions for function calling. Can be strings (command names) or hashtables.
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
     $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Message $Message
     
 .EXAMPLE
-    $tools = Register-Tool "Get-ChildItem"
-    $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $messages -Tools $tools
+    $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $messages -Tools "Get-ChildItem"
 
 .NOTES
     Requires the OpenAIKey environment variable to be set with a valid API key.
@@ -34,8 +33,22 @@ function Invoke-OpenAIProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [hashtable[]]$Tools
+        [object[]]$Tools
     )
+    
+    # Process tools: if strings, register them; then convert to provider schema
+    if ($Tools) {
+        $toolDefinitions = @()
+        foreach ($tool in $Tools) {
+            if ($tool -is [string]) {
+                $toolDefinitions += Register-Tool $tool
+            }
+            else {
+                $toolDefinitions += $tool
+            }
+        }
+        $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
+    }
     
     $headers = @{
         'Authorization' = "Bearer $env:OpenAIKey"
@@ -96,7 +109,7 @@ function Invoke-OpenAIProvider {
                 # Execute function calls and add results
                 foreach ($call in $functionCalls) {
                     $functionName = $call.name
-                    $functionArgs = $call.arguments | ConvertFrom-Json
+                    $functionArgs = $call.arguments | ConvertFrom-Json -AsHashtable
                     
                     try {
                         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
