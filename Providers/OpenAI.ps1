@@ -38,13 +38,13 @@ function Invoke-OpenAIProvider {
     
     # Process tools: if strings, register them; then convert to provider schema
     if ($Tools) {
-        $toolDefinitions = @()
+        $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
             if ($tool -is [string]) {
-                $toolDefinitions += Register-Tool $tool
+                $toolDefinitions.Add((Register-Tool $tool))
             }
             else {
-                $toolDefinitions += $tool
+                $toolDefinitions.Add($tool)
             }
         }
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
