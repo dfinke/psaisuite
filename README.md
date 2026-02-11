@@ -92,6 +92,55 @@ Get-Process | Out-String | icc -Messages "What processes are running?" -Model "o
 
 See [PIPE-EXAMPLES.md](./PIPE-EXAMPLES.md) for more details and examples.
 
+## Tool Calling (Function Calling)
+
+PSAISuite supports tool calling, allowing AI models to execute functions and commands during conversations. This feature enables more interactive and dynamic interactions with LLMs.
+
+### Using Tools
+
+You can pass tools to `Invoke-ChatCompletion` using the `-Tools` parameter. Tools can be specified as:
+- Cmdlet objects: Pass the cmdlet directly (e.g., Get-ChildItem), and it will be registered as a tool
+- Pre-defined tool schemas (hashtables): Custom tool definitions
+
+Example using a built-in command:
+
+```powershell
+Invoke-ChatCompletion -Messages "List the files in the current directory" -Tools Get-ChildItem -Model "openai:gpt-4.1"
+```
+
+This will allow the AI model to call the `Get-ChildItem` cmdlet to list directory contents. The model may respond with something like:
+
+```
+The files in the current directory are:
+- README.md
+- LICENSE
+- PSAISuite.psd1
+- ...
+```
+
+Example with custom tool definition:
+
+```powershell
+$customTool = @{
+    Name = "Get-Weather"
+    Description = "Get current weather for a location"
+    Parameters = @{
+        type = "object"
+        properties = @{
+            location = @{
+                type = "string"
+                description = "City name"
+            }
+        }
+        required = @("location")
+    }
+}
+
+Invoke-ChatCompletion -Messages "What's the weather in New York?" -Tools $customTool -Model "openai:gpt-4o"
+```
+
+Currently, tool calling is supported for the OpenAI provider. Support for other providers will be added in future updates.
+
 Using `PSAISuite` to generate chat completion responses from different providers.
 
 ### List Available Providers

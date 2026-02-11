@@ -20,7 +20,9 @@ Context provided via the pipeline. If -Messages is also provided, the context wi
 The model to be used for the completion request, specified in 'provider:model' format. Defaults to "openai:gpt-4o-mini".
 
 .PARAMETER Tools
-An array of tool definitions for function calling.
+An array of tool definitions for function calling. Can be:
+- Array of strings (command names) that will be registered as tools
+- Array of hashtables (already defined tool schemas)
 
 .PARAMETER IncludeElapsedTime
 A switch parameter that, if specified, measures and includes the elapsed time of the API request in the output.
@@ -66,10 +68,9 @@ Invoke-ChatCompletion -Messages "Show raw output" -Raw
 Returns the full response object (PSCustomObject) instead of just the response text.
 
 .EXAMPLE
-$tools = Register-Tool "Get-ChildItem"
-Invoke-ChatCompletion -Messages "List files in current directory" -Tools $tools -Model "openai:gpt-4o-mini"
+Invoke-ChatCompletion -Messages "List files in current directory" -Tools "Get-ChildItem" -Model "openai:gpt-4o-mini"
 
-Uses the registered Get-ChildItem tool for function calling.
+Uses the Get-ChildItem command as a tool for function calling.
 
 .NOTES
 The function dynamically constructs the provider-specific function name based on the provider specified in the Model 
@@ -90,7 +91,7 @@ function Invoke-ChatCompletion {
         [Parameter(ValueFromPipeline)]
         [object]$Context,
 
-        [hashtable[]]$Tools,
+        [object[]]$Tools,
 
         [switch]$IncludeElapsedTime,
         [switch]$Raw
