@@ -116,9 +116,17 @@ function ConvertTo-ProviderToolSchema {
                 $parameters = Get-ToolValue -Tool $tool -Key 'Parameters'
             }
 
-            if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($description) -or $null -eq $parameters) {
-                Write-Warning "Skipping tool because Name, Description, or Parameters is missing."
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                Write-Warning "Skipping tool because Name is missing."
                 continue
+            }
+
+            if ([string]::IsNullOrWhiteSpace($description)) {
+                $description = $name
+            }
+
+            if ($null -eq $parameters) {
+                $parameters = @{ type = 'object'; properties = @{}; required = @() }
             }
 
             switch ($Provider.ToLower()) {
