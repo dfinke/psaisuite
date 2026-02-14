@@ -166,9 +166,11 @@ Describe "ConvertTo-ProviderToolSchema" {
                 }
             }
             $result = @(ConvertTo-ProviderToolSchema -Tools $tool -Provider google 3>&1)
-            # Should produce a warning
+            # Should produce a warning and no tool objects
             $warnings = $result | Where-Object { $_ -is [System.Management.Automation.WarningRecord] }
+            $toolObjects = $result | Where-Object { $_ -is [System.Collections.Specialized.OrderedDictionary] }
             $warnings.Count | Should -BeGreaterThan 0
+            $toolObjects.Count | Should -Be 0
         }
 
         It "Does not produce warnings when description is missing" {
@@ -179,7 +181,8 @@ Describe "ConvertTo-ProviderToolSchema" {
                     parameters = @{ type = "object"; properties = @{}; required = @() }
                 }
             }
-            $result = @(ConvertTo-ProviderToolSchema -Tools $tool -Provider google -WarningVariable warnings 3>$null)
+            $warnings = $null
+            $result = @(ConvertTo-ProviderToolSchema -Tools $tool -Provider google -WarningVariable warnings)
             $result.Count | Should -Be 1
             $warnings.Count | Should -Be 0
         }
