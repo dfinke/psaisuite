@@ -9,6 +9,9 @@
 - Added tool/function calling support for the xAI provider (chat completions).
 - Added tool/function calling support for the Anthropic provider.
 - Added tool/function calling support for the Google provider.
+- Fixed Google Gemini tool handling: provide defaults for missing description/parameters instead of skipping tools.
+- Added `Invoke-AICompare.ps1` demo script for comparing responses from multiple AI providers in parallel with a GUI interface.
+- Added `demo-InvokeAICompare.ps1` wrapper script for easy execution of the AI comparison demo.
 
 # v0.5.4
 
