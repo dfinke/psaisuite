@@ -9,6 +9,6 @@ This folder contains a Go port of the core `PSAISuite` chat completion flow:
 ## Quick start
 
 ```bash
-cd /home/runner/work/psaisuite/psaisuite/GoPort
+cd GoPort
 go test ./...
 ```

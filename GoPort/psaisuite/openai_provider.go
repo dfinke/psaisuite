@@ -10,6 +10,7 @@ import (
 )
 
 const openAIResponsesURL = "https://api.openai.com/v1/responses"
+const maxFunctionCallIterations = 5
 
 type OpenAIProvider struct {
 	APIKey     string
@@ -44,7 +45,7 @@ func (p *OpenAIProvider) Complete(ctx context.Context, req ProviderRequest) (str
 		Tools: convertToOpenAIResponseTools(req.Tools),
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < maxFunctionCallIterations; i++ {
 		response, err := p.call(ctx, baseURL, apiKey, body)
 		if err != nil {
 			return "", err
@@ -73,13 +74,17 @@ func (p *OpenAIProvider) Complete(ctx context.Context, req ProviderRequest) (str
 			if tool, ok := req.ToolExecutions[call.Name]; ok {
 				args := map[string]any{}
 				if call.Arguments != "" {
-					_ = json.Unmarshal([]byte(call.Arguments), &args)
+					if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil {
+						result = "Error: invalid function arguments: " + err.Error()
+					}
 				}
-				r, err := tool(args)
-				if err != nil {
-					result = "Error: " + err.Error()
-				} else {
-					result = r
+				if result == "" {
+					r, err := tool(args)
+					if err != nil {
+						result = "Error: " + err.Error()
+					} else {
+						result = r
+					}
 				}
 			} else {
 				result = fmt.Sprintf("Error: Function %s not found", call.Name)
