@@ -11,6 +11,15 @@ Both `anthropic:claude-sonnet-4-6` and `xAI:grok-4-1-fast-non-reasoning` scored 
 
 Claude and GPT each scored **7/8**, xAI scored **5/8**, and Gemini scored **6/8**; xAI specifically missed `reasoning-006` (coin order) and `reasoning-008` (last place). Gemini failed `reasoning-008` with “Impossible,” which is technically defensible in natural language but treated as incorrect for benchmark consistency. Gemini also showed severe latency (about **15s average**, with some prompts in the **28–35s** range), which points more to a provider/endpoint issue than model capability. Claude violated strict output format on `reasoning-006` but still passed due to substring matching (known scoring gap requiring manual format review), while xAI remained fastest at ~0.45s average and GPT was slowest at ~1.7s.
 
+## CodeGen Results (5 prompts, 3 models — Gemini excluded due to free tier quota)
+
+Claude, GPT, and xAI each scored **5/5** on automatic scoring, but that headline is misleading without manual validation. Current CodeGen auto-scoring only checks whether the expected function name appears, so manual review and execution are still required to verify correctness. In manual review, Claude’s `Test-PalindromeString` uses `Select-Object -Last`, which does not reverse input and would fail on non-palindromes, while GPT’s `Test-PalindromeString` includes a pipeline bug around `[Array]::Reverse`. xAI returned every response wrapped in markdown code fences despite explicit instructions not to; those runs still passed because the contains check found function names inside fenced blocks, even though fenced output can break agent pipelines. Latency favored xAI at **1.1s** average, followed by Claude at **2.4s**, with GPT at **3.1s**, and the combined outcome exposes a scorer gap that should add a markdown-fence not-contains check for CodeGen instruction-following failures.
+
+## Known Scorer Gaps
+
+1. CodeGen scoring uses contains on function name only, so correctness still requires manual execution and review.
+2. Markdown fence detection is missing, so models that wrap output in code fences pass CodeGen scoring despite violating output constraints. Planned fix: add a not-contains `ScoringType` and a `CodeGenNoMarkdown` benchmark file.
+
 ## Benchmark Categories
 
 - **InstructionFollowing**: Tests strict compliance with formatting and output constraints required for reliable automation.
