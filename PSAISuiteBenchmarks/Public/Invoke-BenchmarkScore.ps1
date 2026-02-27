@@ -8,7 +8,7 @@ function Invoke-BenchmarkScore {
         [string]$ExpectedAnswer,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet('exact', 'contains', 'manual', 'json-valid', 'regex')]
+        [ValidateSet('exact', 'contains', 'not-contains', 'manual', 'json-valid', 'regex')]
         [string]$ScoringType,
 
         [Parameter(Mandatory = $false)]
@@ -34,6 +34,15 @@ function Invoke-BenchmarkScore {
             }
             'contains' {
                 if ($trimmedResponse -match [regex]::Escape($ExpectedAnswer)) {
+                    $rawScore = 1
+                    $passed = $true
+                }
+                else {
+                    $rawScore = 0
+                }
+            }
+            'not-contains' {
+                if ($trimmedResponse -notmatch [regex]::Escape($ExpectedAnswer)) {
                     $rawScore = 1
                     $passed = $true
                 }
