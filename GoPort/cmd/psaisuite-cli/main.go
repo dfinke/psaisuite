@@ -22,11 +22,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	provider := psaisuite.NewOpenAIProvider(nil)
-	// Allow overriding API key via env var or programmatically before calling Complete
-	provider.APIKey = os.Getenv("OpenAIKey")
-
-	registry := psaisuite.ProviderRegistry{"openai": provider}
+	registry := buildRegistry()
 
 	req := psaisuite.CompletionRequest{
 		Messages: *prompt,
@@ -46,4 +42,26 @@ func main() {
 
 	fmt.Println("--- Response ---")
 	fmt.Println(resp.Response)
+}
+
+// buildRegistry registers all supported providers. Each provider reads its
+// required credentials from environment variables at call time, so it is safe
+// to include every provider in the registry even when some keys are absent.
+func buildRegistry() psaisuite.ProviderRegistry {
+	return psaisuite.ProviderRegistry{
+		"openai":     psaisuite.NewOpenAIProvider(nil),
+		"anthropic":  psaisuite.NewAnthropicProvider(nil),
+		"google":     psaisuite.NewGoogleProvider(nil),
+		"groq":       psaisuite.NewGroqProvider(nil),
+		"mistral":    psaisuite.NewMistralProvider(nil),
+		"deepseek":   psaisuite.NewDeepSeekProvider(nil),
+		"github":     psaisuite.NewGitHubProvider(nil),
+		"perplexity": psaisuite.NewPerplexityProvider(nil),
+		"openrouter": psaisuite.NewOpenRouterProvider(nil),
+		"nebius":     psaisuite.NewNebiusProvider(nil),
+		"inception":  psaisuite.NewInceptionProvider(nil),
+		"xai":        psaisuite.NewXAIProvider(nil),
+		"azureai":    psaisuite.NewAzureAIProvider(nil),
+		"ollama":     psaisuite.NewOllamaProvider(nil),
+	}
 }
