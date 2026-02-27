@@ -15,6 +15,25 @@ Claude and GPT each scored **7/8**, xAI scored **5/8**, and Gemini scored **6/8*
 
 Claude, GPT, and xAI each scored **5/5** on automatic scoring, but that headline is misleading without manual validation. Current CodeGen auto-scoring only checks whether the expected function name appears, so manual review and execution are still required to verify correctness. In manual review, Claude’s `Test-PalindromeString` uses `Select-Object -Last`, which does not reverse input and would fail on non-palindromes, while GPT’s `Test-PalindromeString` includes a pipeline bug around `[Array]::Reverse`. xAI returned every response wrapped in markdown code fences despite explicit instructions not to; those runs still passed because the contains check found function names inside fenced blocks, even though fenced output can break agent pipelines. Latency favored xAI at **1.1s** average, followed by Claude at **2.4s**, with GPT at **3.1s**, and the combined outcome exposes a scorer gap that should add a markdown-fence not-contains check for CodeGen instruction-following failures.
 
+## Latency Results (5 prompts, 3 models — xAI and Gemini excluded this run)
+
+All three models scored **4/5** on `latency-005`, with **1 manual review** each. Claude was fastest at **0.67s** average, followed by GPT-5.3-codex at **1.08s** and GPT-4.1 at **1.24s**. `latency-005` asked for the current day of the week, and today is Thursday: GPT-4.1 and GPT-5.3-codex answered Thursday correctly, while Claude answered Monday with no hedging or uncertainty—a confident hallucination. That is a meaningful signal for time-sensitive agent workflows where stale or fabricated temporal facts can quietly break automation decisions. Claude also added bold markdown formatting on `latency-004` (returned `**32**` instead of `32`) despite the "one word only" instruction, which is consistent with the markdown-fence/output-format drift pattern already seen in CodeGen.
+
+## Full Suite Summary
+
+| Model | InstructionFollowing | Reasoning | CodeGen | Latency | AvgLatency |
+| --- | --- | --- | --- | --- | --- |
+| anthropic:claude-sonnet-4-6 | 3/4 | 7/8 | 5/5* | 4/5 | 0.67s |
+| openai:gpt-5.3-codex | — | 7/8 | 5/5* | 4/5 | 1.08s |
+| xAI:grok-4-1-fast-non-reasoning | 3/4 | 5/8 | 5/5* | — | 0.45s |
+| google:gemini-3-flash-preview | — | 6/8 | 3/5† | — | ~15s⚠️ |
+| openai:gpt-4.1 | — | — | — | 4/5 | 1.24s |
+
+* CodeGen scores require manual review — automatic scoring checks function name only
+† Gemini hit free tier quota limit (429) on `codegen-004` and `codegen-005`
+
+This suite is designed to give `psaisuite` users a reproducible, runnable baseline they can execute on their own setup to compare model behavior across quality and latency dimensions. As additional models are added over time, the value compounds by preserving consistent test prompts, scoring conventions, and operational context so trend comparisons stay meaningful.
+
 ## Known Scorer Gaps
 
 1. CodeGen scoring uses contains on function name only, so correctness still requires manual execution and review.
