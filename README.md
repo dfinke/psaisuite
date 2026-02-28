@@ -12,6 +12,19 @@ Simple, unified interface to multiple Generative AI providers.
 
 `PSAISuite` makes it easy for developers to use multiple LLM through a standardized interface. Using an interface similar to OpenAI's, `PSAISuite` makes it easy to interact with the most popular LLMs and compare the results. It is a thin wrapper around the LLM endpoint, and allows creators to seamlessly swap out and test responses from different LLM providers without changing their code. Today, the library is primarily focussed on chat completions. I will expand it cover more use cases in near future.
 
+## 🧪 Benchmark Suite
+
+Wondering which model is fastest? Most instruction-compliant? Best at reasoning?
+
+**[PSAISuiteBenchmarks](./PSAISuiteBenchmarks/README.md)** is a built-in benchmark 
+suite that runs standardized tests across all your providers in parallel and prints 
+a leaderboard.
+```powershell
+Invoke-Benchmark -Models 'anthropic:claude-sonnet-4-6', 'xAI:grok-4-1-fast-non-reasoning', 'openai:gpt-4o' -Category 'InstructionFollowing'
+```
+
+Real results. Real latency. Across all 15 providers.
+
 Currently supported providers are:
 
 - [Anthropic](guides/antrhopic.md)
