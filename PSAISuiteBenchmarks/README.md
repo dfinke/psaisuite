@@ -51,7 +51,7 @@ This suite is designed to give `psaisuite` users a reproducible, runnable baseli
 Import the module, then run all benchmarks or scoped runs by category, optionally exporting to CSV.
 
 ```powershell
-Import-Module .\PSAISuiteBenchmarks.psd1 -Force
+Import-Module .\PSAISuiteBenchmarks.psm1 -Force
 
 # Run one category
 Invoke-Benchmark -Models 'anthropic:claude-sonnet-4-6','xAI:grok-4-1-fast-non-reasoning' -Category 'InstructionFollowing'

@@ -20,6 +20,8 @@ Wondering which model is fastest? Most instruction-compliant? Best at reasoning?
 suite that runs standardized tests across all your providers in parallel and prints 
 a leaderboard.
 ```powershell
+Import-Module .\PSAISuiteBenchmarks\PSAISuiteBenchmarks.psm1 -Force
+
 Invoke-Benchmark -Models 'anthropic:claude-sonnet-4-6', 'xAI:grok-4-1-fast-non-reasoning', 'openai:gpt-4o' -Category 'InstructionFollowing'
 ```
 
