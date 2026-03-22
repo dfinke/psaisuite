@@ -46,6 +46,87 @@ This suite is designed to give `psaisuite` users a reproducible, runnable baseli
 - **CodeGen**: Tests correctness, structure, and practical usability of generated code for implementation tasks.
 - **Latency**: Tests response-time characteristics under benchmark workloads to assess runtime suitability.
 
+## Benchmark Hashtable Layout (How to Author a Benchmark)
+
+Each benchmark file in `benchmarks/*.ps1` returns an array of hashtables (`@(...)`).
+Each hashtable is one test case.
+
+Required shape:
+
+```powershell
+@(
+		@{
+				Id             = 'instruction-following-001'
+				Category       = 'InstructionFollowing'
+				Prompt         = 'Respond with exactly three words. Do not use punctuation.'
+				ExpectedAnswer = '^(\S+)\s+(\S+)\s+(\S+)$'
+				ScoringType    = 'regex'
+				Notes          = 'What this test is checking and any review guidance.'
+		}
+)
+```
+
+Field reference:
+
+- `Id`: Unique benchmark identifier (string).
+- `Category`: Group name used for filtering and summary (for example: `InstructionFollowing`, `Reasoning`, `CodeGen`, `Latency`).
+- `Prompt`: Prompt text sent to the model.
+- `ExpectedAnswer`: Meaning depends on `ScoringType` (exact value, substring, regex pattern, JSON key list, etc.).
+- `ScoringType`: One of the supported scoring modes (see below).
+- `Notes`: Human-readable intent, caveats, and manual-review guidance.
+
+### Scoring Types Explained
+
+The scorer trims the model response (`.Trim()`) before evaluation.
+
+- `exact`
+	- Passes when response equals `ExpectedAnswer` (case-insensitive string comparison).
+	- Best for strict single-value responses.
+
+- `contains`
+	- Passes when response contains `ExpectedAnswer` as a literal substring (case-insensitive regex match using escaped expected text).
+	- Useful when the answer may include surrounding text.
+
+- `not-contains`
+	- Passes when response does **not** contain `ExpectedAnswer`.
+	- Useful for guardrails, for example rejecting markdown code fences by checking for ```` ``` ````.
+
+- `regex`
+	- Passes when response matches regex in `ExpectedAnswer`.
+	- Best for format constraints (like exact list numbering or integer-only output).
+
+- `json-valid`
+	- First checks the response parses as valid JSON.
+	- If `ExpectedAnswer` is provided (comma-separated keys, e.g. `name,capital`), each key must exist.
+	- Fails on parse errors or missing keys.
+
+- `manual`
+	- Always sets `RawScore = $null`, `Passed = $false`, `NeedsReview = $true`.
+	- Use when correctness is contextual or requires human judgment.
+
+### How Results Are Interpreted
+
+- `RawScore`
+	- `1` = automatic pass
+	- `0` = automatic fail
+	- `$null` = not auto-scorable (manual)
+
+- `Passed`
+	- `$true` only when auto-scored and pass condition met.
+
+- `NeedsReview`
+	- `$true` for `manual` scoring or if an exception occurred during scoring.
+
+### Authoring Tips
+
+- Keep `Id` unique across files to avoid analysis confusion.
+- Keep `Category` names consistent; category filtering uses exact string matching.
+- For regex, prefer anchors (`^...$`) for strict formatting tests.
+- Use `CodeGen` in two passes when needed:
+	1. functional presence check (for example `contains` with function name)
+	2. formatting enforcement (for example `not-contains` with ```` ``` ````)
+- Put manual-review instructions in `Notes` so reviewers know exactly what to validate.
+
 ## How to Run
 
 Import the module, then run all benchmarks or scoped runs by category, optionally exporting to CSV.
