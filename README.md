@@ -8,9 +8,9 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/dfinke/PSAISuite)](https://github.com/dfinke/PSAISuite/commits/main)
 [![GitHub issues](https://img.shields.io/github/issues/dfinke/PSAISuite)](https://github.com/dfinke/PSAISuite/issues)
 
-Simple, unified interface to multiple Generative AI providers.
+`PSAISuite` is a high-performance, unified interface designed for systems architects and developers to integrate multiple LLMs through a standardized engineering layer.
 
-`PSAISuite` makes it easy for developers to use multiple LLM through a standardized interface. Using an interface similar to OpenAI's, `PSAISuite` makes it easy to interact with the most popular LLMs and compare the results. It is a thin wrapper around the LLM endpoint, and allows creators to seamlessly swap out and test responses from different LLM providers without changing their code. Today, the library is primarily focussed on chat completions. I will expand it cover more use cases in near future.
+By providing a consistent abstraction—similar to OpenAI’s SDK—it allows teams to swap, test, and benchmark responses across 15+ providers without modifying core application logic. This "Interface-First" approach brings multi-decade software architecture principles to the rapidly evolving AI landscape.
 
 ## 🧪 Benchmark Suite
 
@@ -54,6 +54,13 @@ You can install the module from the PowerShell Gallery.
 ```powershell
 Install-Module PSAISuite
 ```
+
+🏗️ Architectural Core
+Provider Agnostic: Designed to prevent vendor lock-in through a decoupled interface.
+
+Parallel Execution: Built-in benchmarking for real-time latency and instruction-compliance testing.
+
+Context-Aware Piping: Engineered to handle massive data streams as context directly from the PowerShell pipeline.
 
 ## Setup
 To get started, you will need API Keys for the providers you intend to use.
@@ -107,9 +114,12 @@ Get-Process | Out-String | icc -Messages "What processes are running?" -Model "o
 
 See [PIPE-EXAMPLES.md](./PIPE-EXAMPLES.md) for more details and examples.
 
-## Tool Calling (Function Calling)
+🛠️ Tool Calling (Function Orchestration)
+PSAISuite implements native tool-calling patterns, allowing LLMs to interact with your local environment securely. This bridges the gap between static chat and high-agency autonomous actions.
 
-PSAISuite supports tool calling, allowing AI models to execute functions and commands during conversations. This feature enables more interactive and dynamic interactions with LLMs.
+- Native PowerShell Integration: Register any cmdlet or function as a tool instantly.
+- Standardized Schemas: Pass custom JSON/Hashtable definitions for complex API interactions.
+- Cross-Provider Support: Consistent implementation across OpenAI, xAI, Anthropic, and Google.
 
 ### Using Tools
 
