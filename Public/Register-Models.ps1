@@ -57,7 +57,9 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
             }
             'fireworksai' {
                 $account_id = 'fireworks'
-                $response = Invoke-RestMethod "https://api.fireworks.ai/v1/accounts/$account_id/models" -Headers @{
+                $readMask = "readMask=name"
+                $filter = "filter=supports_serverless=true AND supports_tools=true"
+                $response = Invoke-RestMethod "https://api.fireworks.ai/v1/accounts/$account_id/models?$readMask&$filter" -Headers @{
                     'Authorization' = "Bearer $env:FireworksAIKey"
                     'Content-Type'  = 'application/json'
                 }
