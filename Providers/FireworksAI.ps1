@@ -7,7 +7,7 @@
     It requires an API key to be set in the environment variable 'FireworksAIKey'.
 
 .PARAMETER ModelName
-    The name of the FireworksAI model to use (e.g., 'accounts/fireworks/models/deepseek-v3p1').
+    The name of the FireworksAI model to use (e.g., 'deepseek-v3p1').
 
 .PARAMETER Messages
     An array of hashtables containing the messages to send to the model.
