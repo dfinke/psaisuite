@@ -56,12 +56,22 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 $models = $response.data.id | Sort-Object
             }
             'fireworksai' {
-                $account_id = 'fireworks'
+                if ($env:FireworksID) {
+                    $account_id = $env:FireworksID
+                }
+                else {
+                    $account_id = 'fireworks'
+                }
                 $readMask = "readMask=name"
                 $filter = "filter=supports_serverless=true AND supports_tools=true"
                 $response = Invoke-RestMethod "https://api.fireworks.ai/v1/accounts/$account_id/models?$readMask&$filter" -Headers @{
                     'Authorization' = "Bearer $env:FireworksAIKey"
                     'Content-Type'  = 'application/json'
+                }
+                # return if no models were found for the specified account_id
+                if (0 -eq $response.totalSize) {
+                    # Display a "no models found" message in the completion results when no models are found for the account_id.
+                    return "No models were returned for account ID: $account_id"
                 }
                 $models = $response.models.name | ForEach-Object { $_ -replace "accounts/$account_id/models/" } | Sort-Object
             }

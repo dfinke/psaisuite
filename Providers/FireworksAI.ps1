@@ -12,6 +12,10 @@
 .PARAMETER Messages
     An array of hashtables containing the messages to send to the model.
 
+.PARAMETER AccountID
+    (Optional) The account ID to use for the API request. Defaults to 'fireworks'.
+    This parameter is used when the user has deployed models in their own account.
+
 .PARAMETER Tools
     An array of tool definitions for function calling. Can be strings (command names) or hashtables.
 
@@ -36,6 +40,8 @@ function Invoke-FireworksAIProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
+        [ValidatePattern('^[a-zA-Z0-9_-]+$')] # validate for safety - prevent injection attacks
+        [string]$AccountID = 'fireworks', # default account ID when users do not need to specify their own account
         [object[]]$Tools
     )
 
@@ -58,7 +64,14 @@ function Invoke-FireworksAIProvider {
         return
     }
 
-    $account_id = 'fireworks' # using the default 'fireworks' account as not yet supporting user accounts.
+    # use the end-users account_id if the environment variable is set, else use the default 'fireworks' account_id
+    if ($env:FireworksID -match '^[a-zA-Z0-9_-]+$') {
+        $account_id = $env:FireworksID
+    }
+    else {
+        $account_id = 'fireworks'
+    }
+
     $internalModelName = "accounts/$account_id/models/$ModelName"
 
     $headers = @{
