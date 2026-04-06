@@ -44,7 +44,7 @@ $model_id = "deepseek-v3p1"
 # Create the model identifier
 $model = "{0}:{1}" -f $provider, $model_id
 $Message = New-ChatMessage -Prompt "Explain Fireworks.ai in one line"
-Invoke-ChatCompletion -Message $Message -Model $model
+Invoke-ChatCompletion -Messages $Message -Model $model
 ```
 
 ---
