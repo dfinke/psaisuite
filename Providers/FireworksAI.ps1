@@ -12,10 +12,6 @@
 .PARAMETER Messages
     An array of hashtables containing the messages to send to the model.
 
-.PARAMETER AccountID
-    (Optional) The account ID to use for the API request. Defaults to 'fireworks'.
-    This parameter is used when the user has deployed models in their own account.
-
 .PARAMETER Tools
     An array of tool definitions for function calling. Can be strings (command names) or hashtables.
 
@@ -40,8 +36,6 @@ function Invoke-FireworksAIProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [ValidatePattern('^[a-zA-Z0-9_-]+$')] # validate for safety - prevent injection attacks
-        [string]$AccountID = 'fireworks', # default account ID when users do not need to specify their own account
         [object[]]$Tools
     )
 
