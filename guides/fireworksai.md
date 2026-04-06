@@ -22,7 +22,7 @@ When your Fireworks AI account has not deployed any models, the function allows 
 
 # Tab Completion
 
-The PSAISuite module registers an argument completer that retrieves model names from each provider’s REST API. If no models are found, the completer will indicate this during TAB completion with "No models were returned for account ID: <account_id>". If your account has deployed models but the TAB completer is not returning any model names, verify that your `FireworksID` environment variable is set correctly. As a troubleshooting step, removing this environment variable will cause the default **fireworks** account ID to be used, which should return a set of default models if you have not any models deployed under your own ID.
+The PSAISuite module registers an argument completer that retrieves model names from each provider’s REST API. If no models are found, the completer will indicate this during TAB completion with "No models were returned for account ID: <account_id>". If your account has deployed models but the TAB completer is not returning any model names, verify that your `FireworksID` environment variable is set correctly. As a troubleshooting step, removing this environment variable will cause the default **fireworks** account ID to be used, which should return a set of default models if you do not have any models deployed under your own ID.
 
 ## Create a Chat Completion
 
