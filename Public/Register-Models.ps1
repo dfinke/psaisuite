@@ -56,7 +56,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 $models = $response.data.id | Sort-Object
             }
             'fireworksai' {
-                if ($env:FireworksID) {
+                if ($env:FireworksID -match '^[a-zA-Z0-9_-]+$') {
                     $account_id = $env:FireworksID
                 }
                 else {
