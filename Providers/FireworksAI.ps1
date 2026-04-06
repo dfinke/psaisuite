@@ -58,11 +58,12 @@ function Invoke-FireworksAIProvider {
         return
     }
 
-    # use the end-users account_id if the environment variable is set, else use the default 'fireworks' account_id
+    # Determine which account_id to use for the API URI:
+    # - If $env:FireworksID is set with the allowed pattern, use it (supports user with deployed models)
+    # - Otherwise, default the account_id to 'fireworks' (supports user without deployed models)
     if ($env:FireworksID -match '^[a-zA-Z0-9_-]+$') {
         $account_id = $env:FireworksID
-    }
-    else {
+    } else {
         $account_id = 'fireworks'
     }
 
