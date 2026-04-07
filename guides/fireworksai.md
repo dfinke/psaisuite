@@ -10,7 +10,7 @@ $env:FireworksAIKey = "your-fireworksai-api-key"
 
 ## Deployments
 
-If you have deployed models under your account_id, for PSAISuite to interact with those models, you must also reference your FireworksAI account_id. So this by setting the following environment variable in your PowerShell session:
+If you have deployed models under your account_id, for PSAISuite to interact with those models, you must also reference your FireworksAI account_id. Do this by setting the following environment variable in your PowerShell session:
 
 ```shell
 $env:FireworksID = "your-fireworksai-account_id"
