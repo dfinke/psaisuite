@@ -1,3 +1,9 @@
+# v0.7.0
+
+- Added the `FireworksAI` provider for `Invoke-ChatCompletion`, including tool support and simplified Fireworks model naming.
+- Added FireworksAI model discovery to `-Model` tab completion and documentation for setup and usage.
+- Thank you to Paul Naughton [GitHub](https://github.com/pauljnav) for the FireworksAI provider PR.
+
 # v0.6.0
 
 - OpenAI provider migrated to use the new Responses API endpoint for improved functionality and future compatibility.
