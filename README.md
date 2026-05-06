@@ -38,6 +38,7 @@ Currently supported providers are:
 - [Inception](guides/inception.md)
 - [Mistral](guides/mistral.md)
 - [Nebius](guides/nebius.md)
+- [Novita](guides/novita.md)
 - [Ollama](guides/ollama.md)
 - [OpenAI](guides/openai.md)
 - [OpenRouter](guides/openrouter.md)
