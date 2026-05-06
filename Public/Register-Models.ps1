@@ -1,9 +1,10 @@
+$script:completionResults = 'openai', 'google', 'github', 'openrouter', 'anthropic', 'deepseek', 'xAI', 'mistral', 'fireworksai', 'novita', 'poe' | Sort-Object
+
 Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName 'Model' -ScriptBlock {
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParams)
 
     if ($wordToComplete -notmatch ':') {
-        $completionResults = 'openai', 'google', 'github', 'openrouter', 'anthropic', 'deepseek', 'xAI', 'mistral', 'fireworksai' | Sort-Object
-        $completionResults | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        $script:completionResults | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new("$($_):", $_, 'ParameterValue', "Provider: $_")
         }
     }
@@ -94,6 +95,14 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     return
                 }
                 $models = $response.models.name | ForEach-Object { $_ -replace "^accounts/$([regex]::Escape($account_id))/models/" } | Sort-Object
+            }
+            'novita' {
+                $response = Invoke-RestMethod https://api.novita.ai/openai/v1/models -Headers @{
+                    "Authorization" = "Bearer $env:NovitaKey"
+                    "Content-Type"  = "application/json"
+                }
+
+                $models = $response.data.id | Sort-Object
             }
 
             default {
