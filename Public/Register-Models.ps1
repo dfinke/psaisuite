@@ -1,4 +1,6 @@
-$script:completionResults = 'openai', 'google', 'github', 'openrouter', 'anthropic', 'deepseek', 'xAI', 'mistral', 'fireworksai', 'novita', 'poe' | Sort-Object
+# ChatCompletionProviders is a top‑level list of supported providers, referenced for argument completion and tooltip display.
+# Easily extended for future new providers.
+# Tooltip can be custom per provider.
 $script:ChatCompletionProviders = @{
     openai      = @{ Tooltip = 'AI Provider: OpenAI' }
     google      = @{ Tooltip = 'AI Provider: Google' }
@@ -57,19 +59,32 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
     )
 
     if ($wordToComplete -notmatch ':') {
-        $script:completionResults | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new(
-                "$($_):",
-                $_,
-                [System.Management.Automation.CompletionResultType]::ParameterValue,
-                "Provider: $_"
-            )
-        }
-    }
-    else {
-        $providerName, $partialModelName = $wordToComplete -split ':', 2
-        $providerKey = $providerName.ToLower()
+        foreach ($providerName in $script:ChatCompletionProviders.Keys) {
 
+            # iterate provider names per model referencing each provider tooltip defined in ChatCompletionProviders
+            $provider = $script:ChatCompletionProviders[$providerName]
+            if ($providerName -like "$wordToComplete*") {
+                [System.Management.Automation.CompletionResult]::new(
+                    "${providerName}:",
+                    $providerName,
+                    [System.Management.Automation.CompletionResultType]::ParameterValue,
+                    $provider.Tooltip
+                )
+            }
+        }
+        return
+    }
+
+    $providerName, $partialModelName = $wordToComplete -split ':', 2
+    $providerKey = $providerName.ToLower()
+
+    if (-not $script:ChatCompletionProviders[$providerKey]) {
+        # provider not found in our supported provider list, return no completions
+        return
+    }
+
+    # try/catch to fail gracefully (return only) when provider API processing encounters errors
+    try {
         switch ($providerKey) {
             'openai' {
                 $response = Invoke-RestMethod https://api.openai.com/v1/models -Headers @{"Authorization" = "Bearer $env:OpenAIKey" }
@@ -184,15 +199,18 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 return
             }
         }
+    }
+    catch {
+        return
+    }
 
-        $models | Sort-Object -Property id |
+    $models | Sort-Object -Property id |
         Where-Object { $_.id -like "$partialModelName*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new(
-                "$($providerName):$($_.id)" ,
-                $_.id ,
-                [System.Management.Automation.CompletionResultType]::ParameterValue ,
+                "$($providerName):$($_.id)",
+                $_.id,
+                [System.Management.Automation.CompletionResultType]::ParameterValue,
                 $_.description # model description as CompletionResult toolTip
             )
         }
-    }
 }
