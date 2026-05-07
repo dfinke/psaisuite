@@ -1,4 +1,17 @@
 $script:completionResults = 'openai', 'google', 'github', 'openrouter', 'anthropic', 'deepseek', 'xAI', 'mistral', 'fireworksai', 'novita', 'poe' | Sort-Object
+$script:ChatCompletionProviders = @{
+    openai      = @{ Tooltip = 'AI Provider: OpenAI' }
+    google      = @{ Tooltip = 'AI Provider: Google' }
+    github      = @{ Tooltip = 'AI Provider: GitHub' }
+    openrouter  = @{ Tooltip = 'AI Provider: OpenRouter' }
+    anthropic   = @{ Tooltip = 'AI Provider: Anthropic' }
+    deepseek    = @{ Tooltip = 'AI Provider: DeepSeek' }
+    xai         = @{ Tooltip = 'AI Provider: xAI' }
+    mistral     = @{ Tooltip = 'AI Provider: Mistral' }
+    fireworksai = @{ Tooltip = 'AI Provider: Fireworks AI' }
+    novita      = @{ Tooltip = 'AI Provider: Novita' }
+    poe         = @{ Tooltip = 'AI Provider: Poe' }
+}
 
 function ConvertTo-ModelCatalogItem {
     [CmdletBinding()]
