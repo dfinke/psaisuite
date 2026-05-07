@@ -122,7 +122,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
             }
 
             default {
-                Write-Error "Unknown provider: $provider"
+                # dont error out if provider is not recognized, just return no completions
                 return
             }
         }
