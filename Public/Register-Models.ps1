@@ -1,7 +1,13 @@
 $script:completionResults = 'openai', 'google', 'github', 'openrouter', 'anthropic', 'deepseek', 'xAI', 'mistral', 'fireworksai', 'novita', 'poe' | Sort-Object
 
 Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName 'Model' -ScriptBlock {
-    param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParams)
+    param(
+        [string] $commandName,
+        [string] $parameterName,
+        [string] $wordToComplete,
+        [System.Management.Automation.Language.CommandAst] $commandAst,
+        [Collections.IDictionary] $fakeBoundParams
+    )
 
     if ($wordToComplete -notmatch ':') {
         $script:completionResults | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
