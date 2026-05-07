@@ -25,8 +25,8 @@ function ConvertTo-ModelCatalogItem {
         [string] $Description,
         [Parameter(ValueFromPipelineByPropertyName)]
         [string] $Summary,
-        [Parameter()]
-        [int] $maxDescriptionWords = 100
+        [int] $maxDescriptionWords = 100,
+        [regex] $IdReplacementPattern = [string]::Empty
     )
 
     process {
@@ -41,7 +41,7 @@ function ConvertTo-ModelCatalogItem {
 
         # output model id and description - tyically used by the argument completer.
         [pscustomobject]@{
-            id          = $ModelId
+            id          = [regex]::Replace($ModelId, $IdReplacementPattern, '') # Optional regex replacement to simplify each model id for toolTip display
             description = $normalizedDescription
         }
     }
@@ -68,43 +68,48 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
     }
     else {
         $providerName, $partialModelName = $wordToComplete -split ':', 2
-        switch ($providerName.ToLower()) {
+        $providerKey = $providerName.ToLower()
+
+        switch ($providerKey) {
             'openai' {
-                $response = Invoke-RestMethod https://api.openai.com/v1/models -Headers @{"Authorization" = "Bearer $env:OPENAIKEY" }
-                $models = $response.data.id
+                $response = Invoke-RestMethod https://api.openai.com/v1/models -Headers @{"Authorization" = "Bearer $env:OpenAIKey" }
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'google' {
-                $response = Invoke-RestMethod https://generativelanguage.googleapis.com/v1beta/models/?key=$env:GEMINIKEY
-                $models = $response.models.name -replace ("models/", "")
+                $response = Invoke-RestMethod https://generativelanguage.googleapis.com/v1beta/models/?key=$env:GeminiKey
+                # Also simplify each google model id by removing the "models/" prefix
+                $models = $response.models | ConvertTo-ModelCatalogItem -Provider $providerKey -IdReplacementPattern '^models/'
             }
             'github' {
-                $models = (Invoke-RestMethod https://models.github.ai/catalog/models).id
+                $response = Invoke-RestMethod https://models.github.ai/catalog/models
+                $models = $response | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'openrouter' {
-                $models = (Invoke-RestMethod https://openrouter.ai/api/v1/models).data.id
+                $response = Invoke-RestMethod https://openrouter.ai/api/v1/models
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'anthropic' {
                 $response = Invoke-RestMethod https://api.anthropic.com/v1/models -Headers @{
-                    "x-api-key"         = $env:ANTHROPICKEY
+                    "x-api-key"         = $env:AnthropicKey
                     "anthropic-version" = "2023-06-01"
                 }
-                $models = $response.data.id
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'deepseek' {
                 $response = Invoke-RestMethod https://api.deepseek.com/models -Headers @{
-                    "Authorization" = "Bearer $env:DEEPSEEKKEY"
+                    "Authorization" = "Bearer $env:DeepSeekKey"
                     "content-type"  = "application/json"
                 }
 
-                $models = $response.data.id
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'xai' {
                 $response = Invoke-RestMethod https://api.x.ai/v1/models -Headers @{
-                    'Authorization' = "Bearer $env:xAIKey"
+                    'Authorization' = "Bearer $env:XAIKey"
                     'content-type'  = 'application/json'
                 }
 
-                $models = $response.data.id
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'mistral' {
                 $response = Invoke-RestMethod https://api.mistral.ai/v1/models -Headers @{
@@ -112,7 +117,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     "Accept"        = "application/json"
                 }
 
-                $models = $response.data.id | Sort-Object
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'fireworksai' {
                 if ($env:FireworksID) {
@@ -152,7 +157,8 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     )
                     return
                 }
-                $models = $response.models.name | ForEach-Object { $_ -replace "^accounts/$([regex]::Escape($account_id))/models/" } | Sort-Object
+                # Also simplify the fireworks model id by removing the "accounts/account_id/models/" prefix
+                $models = $response.models | ConvertTo-ModelCatalogItem -Provider $providerKey -IdReplacementPattern ("accounts/$escaped_account_id/models/")
             }
             'novita' {
                 $response = Invoke-RestMethod https://api.novita.ai/openai/v1/models -Headers @{
@@ -160,7 +166,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     "Content-Type"  = "application/json"
                 }
 
-                $models = $response.data.id | Sort-Object
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'poe' {
                 ## Note: This endpoint does not require authentication and returns all publicly available models.
@@ -170,7 +176,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     "Content-Type"  = "application/json"
                 }
 
-                $models = $response.data.id | Sort-Object
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
 
             default {
@@ -179,12 +185,13 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
             }
         }
 
-        $models | Where-Object { $_ -like "$partialModelName*" } | ForEach-Object {
+        $models | Sort-Object -Property id |
+        Where-Object { $_.id -like "$partialModelName*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new(
-                "$($providerName):$($_)",
-                "$($providerName):$($_)",
-                [System.Management.Automation.CompletionResultType]::ParameterValue,
-                "Model: $($_)"
+                "$($providerName):$($_.id)" ,
+                $_.id ,
+                [System.Management.Automation.CompletionResultType]::ParameterValue ,
+                $_.description # model description as CompletionResult toolTip
             )
         }
     }
