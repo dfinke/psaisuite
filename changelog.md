@@ -1,3 +1,11 @@
+# v0.8.0
+
+- Thank you to Paul Naughton [GitHub](https://github.com/pauljnav) for the Novita and Poe provider PRs.
+- Added the `Novita` provider for `Invoke-ChatCompletion`.
+- Added the `Poe` provider for `Invoke-ChatCompletion`.
+- Added `Novita` and `Poe` model discovery to `-Model` tab completion.
+- Added setup and usage documentation for `Novita` and `Poe`, including README guide links.
+
 # v0.7.0
 
 - Added the `FireworksAI` provider for `Invoke-ChatCompletion`, including tool support and simplified Fireworks model naming.
