@@ -1,5 +1,39 @@
 $script:completionResults = 'openai', 'google', 'github', 'openrouter', 'anthropic', 'deepseek', 'xAI', 'mistral', 'fireworksai', 'novita', 'poe' | Sort-Object
 
+function ConvertTo-ModelCatalogItem {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+        [Alias('id', 'name', 'model')]
+        [string] $ModelId,
+        [Parameter(Mandatory)]
+        [string] $Provider,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string] $Description,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string] $Summary,
+        [Parameter()]
+        [int] $maxDescriptionWords = 100
+    )
+
+    process {
+        $normalizedDescription = if ($Description) { $Description }
+        elseif ($Summary) { $Summary }
+        else { "The $Provider $ModelId metadata does not include a description." }
+
+        # Reform first 100 words of description as a description snippet as Arg Completer toolTips displays null with too much content.
+        $normalizedDescription = (
+            $normalizedDescription -split '\s+' | Select-Object -First $maxDescriptionWords
+        ) -join ' '
+
+        # output model id and description - tyically used by the argument completer.
+        [pscustomobject]@{
+            id          = $ModelId
+            description = $normalizedDescription
+        }
+    }
+}
+
 Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName 'Model' -ScriptBlock {
     param(
         [string] $commandName,
