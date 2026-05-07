@@ -42,6 +42,7 @@ Currently supported providers are:
 - [Ollama](guides/ollama.md)
 - [OpenAI](guides/openai.md)
 - [OpenRouter](guides/openrouter.md)
+- [Poe](guides/poe.md)
 - [Perplexity](guides/perplexity.md)
 - [xAI](guides/xai.md)
 
