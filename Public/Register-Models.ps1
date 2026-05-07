@@ -104,6 +104,16 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
 
                 $models = $response.data.id | Sort-Object
             }
+            'poe' {
+                ## Note: This endpoint does not require authentication and returns all publicly available models.
+                ## However, including the API key in the header is prudent to avoid future regression.
+                $response = Invoke-RestMethod https://api.poe.com/v1/models -Headers @{
+                    "Authorization" = "Bearer $env:PoeKey"
+                    "Content-Type"  = "application/json"
+                }
+
+                $models = $response.data.id | Sort-Object
+            }
 
             default {
                 Write-Error "Unknown provider: $provider"
