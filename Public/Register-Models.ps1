@@ -20,7 +20,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
         }
     }
     else {
-        $providerName, $partial = $wordToComplete -split ':', 2
+        $providerName, $partialModelName = $wordToComplete -split ':', 2
         switch ($providerName.ToLower()) {
             'openai' {
                 $response = Invoke-RestMethod https://api.openai.com/v1/models -Headers @{"Authorization" = "Bearer $env:OPENAIKEY" }
@@ -132,7 +132,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
             }
         }
 
-        $models | Where-Object { $_ -like "$partial*" } | ForEach-Object {
+        $models | Where-Object { $_ -like "$partialModelName*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new(
                 "$($providerName):$($_)",
                 "$($providerName):$($_)",
