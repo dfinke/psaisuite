@@ -11,7 +11,12 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
 
     if ($wordToComplete -notmatch ':') {
         $script:completionResults | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new("$($_):", $_, 'ParameterValue', "Provider: $_")
+            [System.Management.Automation.CompletionResult]::new(
+                "$($_):",
+                $_,
+                [System.Management.Automation.CompletionResultType]::ParameterValue,
+                "Provider: $_"
+            )
         }
     }
     else {
