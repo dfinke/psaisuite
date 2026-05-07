@@ -20,8 +20,8 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
         }
     }
     else {
-        $provider, $partial = $wordToComplete -split ':', 2
-        switch ($provider.ToLower()) {
+        $providerName, $partial = $wordToComplete -split ':', 2
+        switch ($providerName.ToLower()) {
             'openai' {
                 $response = Invoke-RestMethod https://api.openai.com/v1/models -Headers @{"Authorization" = "Bearer $env:OPENAIKEY" }
                 $models = $response.data.id
@@ -127,15 +127,15 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
             }
 
             default {
-                # dont error out if provider is not recognized, just return no completions
+                # dont error out if provider name is not recognized, just return no completions
                 return
             }
         }
 
         $models | Where-Object { $_ -like "$partial*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new(
-                "$($provider):$($_)",
-                "$($provider):$($_)",
+                "$($providerName):$($_)",
+                "$($providerName):$($_)",
                 [System.Management.Automation.CompletionResultType]::ParameterValue,
                 "Model: $($_)"
             )
