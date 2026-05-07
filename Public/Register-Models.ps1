@@ -4,7 +4,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParams)
 
     if ($wordToComplete -notmatch ':') {
-        $completionResults | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        $script:completionResults | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new("$($_):", $_, 'ParameterValue', "Provider: $_")
         }
     }
