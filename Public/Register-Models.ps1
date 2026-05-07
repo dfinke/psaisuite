@@ -128,7 +128,12 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
         }
 
         $models | Where-Object { $_ -like "$partial*" } | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new("$($provider):$($_)", "$($provider):$($_)", 'ParameterValue', "Model: $($_)")
+            [System.Management.Automation.CompletionResult]::new(
+                "$($provider):$($_)",
+                "$($provider):$($_)",
+                [System.Management.Automation.CompletionResultType]::ParameterValue,
+                "Model: $($_)"
+            )
         }
     }
 }
