@@ -29,7 +29,7 @@ Real results. Real latency. Across all 15 providers.
 
 Currently supported providers are:
 
-- [Anthropic](guides/antrhopic.md)
+- [Anthropic](guides/anthropic.md)
 - [Azure AI Foundry](guides/azureai.md)
 - [DeepSeek](guides/deepseek.md)
 - [GitHub](guides/github.md)
