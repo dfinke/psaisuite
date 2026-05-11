@@ -195,7 +195,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
             }
 
             default {
-                # dont error out if provider name is not recognized, just return no completions
+                # don't error out if provider name is not recognized, just return no completions
                 return
             }
         }
