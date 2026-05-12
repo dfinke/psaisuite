@@ -27,7 +27,7 @@ function ConvertTo-ModelCatalogItem {
         [string] $Description,
         [Parameter(ValueFromPipelineByPropertyName)]
         [string] $Summary,
-        [int] $maxDescriptionWords = 100,
+        [int] $MaxDescriptionWords = 100,
         [regex] $IdReplacementPattern = [string]::Empty
     )
 
@@ -38,7 +38,7 @@ function ConvertTo-ModelCatalogItem {
 
         # Reform first 100 words of description as a description snippet as Arg Completer toolTips displays null with too much content.
         $normalizedDescription = (
-            $normalizedDescription -split '\s+' | Select-Object -First $maxDescriptionWords
+            $normalizedDescription -split '\s+' | Select-Object -First $MaxDescriptionWords
         ) -join ' '
 
         # output model id and description - tyically used by the argument completer.
