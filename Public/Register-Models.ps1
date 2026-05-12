@@ -120,7 +120,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
             }
             'xai' {
                 $response = Invoke-RestMethod https://api.x.ai/v1/models -Headers @{
-                    'Authorization' = "Bearer $env:XAIKey"
+                    'Authorization' = "Bearer $env:xAIKey"
                     'content-type'  = 'application/json'
                 }
 
