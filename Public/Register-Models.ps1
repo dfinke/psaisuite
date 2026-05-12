@@ -59,7 +59,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
     )
 
     if ($wordToComplete -notmatch ':') {
-        foreach ($providerName in $script:ChatCompletionProviders.Keys) {
+        foreach ($providerName in $script:ChatCompletionProviders.Keys | Sort-Object) {
 
             # iterate provider names per model referencing each provider tooltip defined in ChatCompletionProviders
             $provider = $script:ChatCompletionProviders[$providerName]
