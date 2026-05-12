@@ -41,7 +41,7 @@ function ConvertTo-ModelCatalogItem {
             $normalizedDescription -split '\s+' | Select-Object -First $MaxDescriptionWords
         ) -join ' '
 
-        # output model id and description - tyically used by the argument completer.
+        # output model id and description - typically used by the argument completer.
         [pscustomobject]@{
             id          = [regex]::Replace($ModelId, $IdReplacementPattern, '') # Optional regex replacement to simplify each model id for toolTip display
             description = $normalizedDescription
