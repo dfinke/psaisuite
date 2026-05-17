@@ -1,3 +1,10 @@
+# v0.8.1
+
+- Thank you to Paul Naughton [GitHub](https://github.com/pauljnav) for the model tooltip and Anthropic documentation fixes PR.
+- Improved `-Model` argument completion by showing provider tooltips and model description tooltips.
+- Refactored provider/model registration in `Register-Models` to use a shared provider catalog and normalized model metadata for completions.
+- Fixed the Anthropic guide filename and updated the README link to `guides/anthropic.md`.
+
 # v0.8.0
 
 - Thank you to Paul Naughton [GitHub](https://github.com/pauljnav) for the Novita and Poe provider PRs.
