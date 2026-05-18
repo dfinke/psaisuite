@@ -166,14 +166,13 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
-        $providerFunction = "Invoke-${provider}Provider"
-
-        if (-not (Get-Command $providerFunction -ErrorAction SilentlyContinue)) {
-            throw "Unsupported provider: $provider. No function named $providerFunction found."
+        $Providers = (Get-ChildItem "$PSScriptRoot/../Providers" -Filter '*.ps1' -EA SI).BaseName -as [string[]]
+        if ($Provider -notin $Providers) {
+            throw "Unsupported provider: '$Provider'. No file found at 'Providers/$Provider'."
         }
 
         if ($IncludeElapsedTime) {
-            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            $stopwatch = [Diagnostics.Stopwatch]::StartNew()
         }
 
         $functionParams = @{
@@ -189,7 +188,7 @@ function Invoke-ChatCompletion {
             $functionParams.SystemRole = $SystemRole
         }
 
-        $responseText = & $providerFunction @functionParams
+        $ResponseText = & "Invoke-${Provider}Provider" @FunctionParams
 
         if ($IncludeElapsedTime) {
             $stopwatch.Stop()

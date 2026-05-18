@@ -22,6 +22,7 @@
     # Functions to export from this module
     FunctionsToExport = @(
         'Get-ChatProviders'
+        'Register-ChatProvider'
         'Invoke-ChatCompletion'
         'New-ChatMessage'
         'Get-OpenRouterModel'
