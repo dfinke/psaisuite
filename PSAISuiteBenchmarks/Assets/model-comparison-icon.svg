@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">PSAISuite model comparison icon</title>
+  <desc id="desc">Three model response columns connected by comparison arcs.</desc>
+  <defs>
+    <linearGradient id="mark-bg" x1="12" y1="12" x2="84" y2="84" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb" />
+      <stop offset="1" stop-color="#0f766e" />
+    </linearGradient>
+    <radialGradient id="mark-shine" cx="72" cy="24" r="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".38" />
+      <stop offset=".62" stop-color="#ffffff" stop-opacity=".08" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#2563eb" flood-opacity=".22" />
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="80" height="80" rx="20" fill="url(#mark-bg)" filter="url(#soft-shadow)" />
+  <rect x="8" y="8" width="80" height="80" rx="20" fill="url(#mark-shine)" />
+  <path d="M30 38C39 26 57 26 66 38M30 58C39 70 57 70 66 58" fill="none" stroke="#fff" stroke-opacity=".58" stroke-width="6" stroke-linecap="round" />
+  <rect x="23" y="30" width="18" height="38" rx="7" fill="#fff" fill-opacity=".88" />
+  <rect x="39" y="20" width="18" height="56" rx="7" fill="#fff" />
+  <rect x="55" y="34" width="18" height="30" rx="7" fill="#fff" fill-opacity=".82" />
+  <circle cx="48" cy="48" r="6" fill="#fbbf24" />
+</svg>

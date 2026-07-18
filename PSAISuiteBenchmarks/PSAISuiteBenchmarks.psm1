@@ -3,4 +3,4 @@ foreach ($file in $publicFiles) {
     . $file.FullName
 }
 
-Export-ModuleMember -Function 'Invoke-Benchmark', 'Invoke-BenchmarkScore'
+Export-ModuleMember -Function 'Invoke-Benchmark', 'Invoke-BenchmarkScore', 'Invoke-ModelComparison', 'Get-ModelComparison', 'Search-ModelComparison', 'Set-ModelComparisonRating', 'Show-ModelComparison'

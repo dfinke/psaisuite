@@ -1,3 +1,15 @@
+<table>
+  <tr>
+    <td width="86">
+      <img src="./Assets/model-comparison-icon.svg" alt="PSAISuite model comparison icon" width="72" height="72">
+    </td>
+    <td>
+      <h1>PSAISuite Benchmarks</h1>
+      <p>Benchmark harness and model comparison dashboard for comparing provider behavior, latency, and response quality.</p>
+    </td>
+  </tr>
+</table>
+
 ## What This Is
 
 A benchmark suite for evaluating AI models across categories: `InstructionFollowing`, `Reasoning`, `CodeGen`, and `Latency`.
@@ -142,6 +154,78 @@ Invoke-Benchmark -Models 'anthropic:claude-sonnet-4-6','xAI:grok-4-1-fast-non-re
 
 # Run all categories and export results
 Invoke-Benchmark -Models 'anthropic:claude-sonnet-4-6','xAI:grok-4-1-fast-non-reasoning' -OutputPath .\results-all.csv
+
+# Run one category and also persist it to the JSON comparison store
+Invoke-Benchmark -Models 'anthropic:claude-sonnet-4-6','xAI:grok-4-1-fast-non-reasoning' -Category 'InstructionFollowing' -SaveJson -Tags 'agent-pipeline'
+```
+
+## Model Comparison History
+
+`Invoke-ModelComparison` runs one ad hoc prompt across multiple PSAISuite models, captures response text, latency, errors, and review fields, then saves the run to a JSON store. By default the store is written to:
+
+```powershell
+$env:LOCALAPPDATA\PSAISuite\model-comparisons.json
+```
+
+Run a comparison:
+
+```powershell
+$models = @(
+    'openai:gpt-4o-mini'
+    'anthropic:claude-sonnet-4-6'
+    'deepseek:deepseek-v4-flash'
+    'google:gemini-3.1-flash-lite'
+    'xAI:grok-4-1-fast-non-reasoning'
+)
+
+Invoke-ModelComparison -Prompt 'Explain PowerShell splatting with one small example.' -Models $models -Title 'Splatting explanation' -Tags 'docs','powershell'
+```
+
+Use a repo-local JSON file:
+
+```powershell
+Invoke-ModelComparison -Prompt 'Return valid JSON with name and capital for France.' -Models $models -StorePath .\model-comparisons.json
+```
+
+Search saved prompts and responses:
+
+```powershell
+Search-ModelComparison -Query 'valid JSON'
+Search-ModelComparison -Model 'openai:gpt-4o-mini' -Tag 'powershell'
+Get-ModelComparison -Last 5
+```
+
+Rate a response:
+
+```powershell
+$run = Get-ModelComparison -Last 1 -IncludeResponses
+Set-ModelComparisonRating -RunId $run.Id -Model 'openai:gpt-4o-mini' -Accuracy Up -Relevance Up -Completeness Down -Notes 'Missed one edge case.'
+```
+
+Open the interactive local dashboard:
+
+```powershell
+Show-ModelComparison -Open
+Show-ModelComparison -StorePath .\model-comparisons.json -Open
+```
+
+`Show-ModelComparison -Open` creates the JSON store if it does not exist, starts a small localhost dashboard server, and opens the browser. The primary screen has a prompt box, a whitespace-separated model list, and a `Run Comparison` button. `Ctrl+Enter` runs the comparison from either text box. While a run is active, the dashboard switches to a wait cursor, disables the run button, shows one pending card per model, and updates each card as that model finishes.
+
+Example model list:
+
+```text
+openai:gpt-4o-mini
+anthropic:claude-sonnet-4-6
+deepseek:deepseek-v4-flash
+google:gemini-3.1-flash-lite
+```
+
+The dashboard saves each run back to the JSON store, then displays the responses side by side with latency, errors, benchmark scores, human ratings, history, and search.
+
+Export a read-only static HTML snapshot:
+
+```powershell
+Show-ModelComparison -StorePath .\model-comparisons.json -OutputPath .\model-comparisons.html
 ```
 
 ## Interpreting Results

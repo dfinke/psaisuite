@@ -27,6 +27,16 @@ Invoke-Benchmark -Models 'anthropic:claude-sonnet-4-6', 'xAI:grok-4-1-fast-non-r
 
 Real results. Real latency. Across all 15 providers.
 
+The benchmark module also includes a JSON-backed model comparison history:
+
+```powershell
+Invoke-ModelComparison -Prompt 'Explain PowerShell splatting with one small example.' -Models 'openai:gpt-4o-mini','anthropic:claude-sonnet-4-6','deepseek:deepseek-v4-flash','google:gemini-3.1-flash-lite'
+Search-ModelComparison -Query 'splatting'
+Show-ModelComparison -Open
+```
+
+`Show-ModelComparison -Open` opens an interactive local dashboard where you can enter a prompt and a whitespace-separated model list, then run the comparison from the browser.
+
 Currently supported providers are:
 
 - [Anthropic](guides/anthropic.md)

@@ -11,7 +11,16 @@ function Invoke-Benchmark {
         [string]$BenchmarksPath = "$PSScriptRoot\..\benchmarks",
 
         [Parameter(Mandatory = $false)]
-        [string]$OutputPath
+        [string]$OutputPath,
+
+        [Parameter(Mandatory = $false)]
+        [string]$StorePath,
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$Tags,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$SaveJson
     )
 
     # 1. Load all .ps1 files from BenchmarksPath
@@ -110,6 +119,61 @@ function Invoke-Benchmark {
     # 6. Export to CSV if OutputPath provided
     if ($OutputPath) {
         $results | Export-Csv -Path $OutputPath -NoTypeInformation
+    }
+
+    if ($SaveJson -or $StorePath) {
+        $benchmarkRuns = foreach ($benchmark in $allBenchmarks) {
+            $benchmarkResultsForCase = @($results | Where-Object { $_.BenchmarkId -eq $benchmark.Id })
+            $responses = foreach ($result in $benchmarkResultsForCase) {
+                $modelParts = Split-ModelComparisonModel -Model $result.Model
+                $elapsed = if ($result.ElapsedTime -is [TimeSpan]) {
+                    $result.ElapsedTime
+                }
+                elseif ($result.ElapsedTime) {
+                    [TimeSpan]::Parse($result.ElapsedTime)
+                }
+                else {
+                    [TimeSpan]::Zero
+                }
+
+                [PSCustomObject]@{
+                    id                  = [guid]::NewGuid().ToString()
+                    model               = $result.Model
+                    provider            = $modelParts.Provider
+                    modelName           = $modelParts.ModelName
+                    response            = $result.Response
+                    error               = $null
+                    status              = 'Succeeded'
+                    elapsedMilliseconds = [math]::Round($elapsed.TotalMilliseconds, 2)
+                    elapsedTime         = $elapsed.ToString('c')
+                    rawScore            = $result.RawScore
+                    passed              = $result.Passed
+                    needsReview         = $result.NeedsReview
+                    scoringType         = $result.ScoringType
+                    notes               = $result.Notes
+                    userNotes           = $null
+                    ratings             = New-ModelComparisonRatings
+                }
+            }
+
+            [PSCustomObject]@{
+                id             = [guid]::NewGuid().ToString()
+                kind           = 'benchmark'
+                title          = "$($benchmark.Category)/$($benchmark.Id)"
+                prompt         = $benchmark.Prompt
+                createdAt      = (Get-Date).ToUniversalTime().ToString('o')
+                models         = @($Models)
+                tags           = @($Tags)
+                category       = $benchmark.Category
+                benchmarkId    = $benchmark.Id
+                expectedAnswer = $benchmark.ExpectedAnswer
+                scoringType    = $benchmark.ScoringType
+                notes          = $benchmark.Notes
+                responses      = @($responses)
+            }
+        }
+
+        $null = Add-ModelComparisonRun -Run $benchmarkRuns -StorePath $StorePath
     }
 
     # 7. Print summary table to console

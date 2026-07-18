@@ -21,7 +21,15 @@
     Description       = 'A benchmark suite for evaluating AI models using PSAISuite.'
 
     # Functions to export from this module
-    FunctionsToExport = @('Invoke-Benchmark', 'Invoke-BenchmarkScore')
+    FunctionsToExport = @(
+        'Invoke-Benchmark'
+        'Invoke-BenchmarkScore'
+        'Invoke-ModelComparison'
+        'Get-ModelComparison'
+        'Search-ModelComparison'
+        'Set-ModelComparisonRating'
+        'Show-ModelComparison'
+    )
 
     # Cmdlets to export from this module
     CmdletsToExport   = @()

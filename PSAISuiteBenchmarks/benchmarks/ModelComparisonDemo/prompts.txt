@@ -1,0 +1,11 @@
+capital of france iceland sweden in json
+fib fn, no recurse in powershell
+i had three apples ate 2 and mom bought me 1
+compare spring and autum
+what day is today
+what dr should i see for thje pain in my ear
+
+
+'fibonacci fn, no recurse, just code, Rust'
+'capital of france iceland sweden in json'
+'compare spring and autum in 5 sentences'
