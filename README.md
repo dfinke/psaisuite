@@ -36,6 +36,7 @@ Currently supported providers are:
 - [Google](guides/google.md)
 - [Groq](guides/groq.md)
 - [Inception](guides/inception.md)
+- [Kimi Code](guides/kimi.md)
 - [Mistral](guides/mistral.md)
 - [Nebius](guides/nebius.md)
 - [Novita](guides/novita.md)
@@ -78,6 +79,7 @@ $env:NebiusKey="your-nebius-api-key"
 $env:GITHUB_TOKEN="your-github-token" # Add GitHub token
 # ... and so on for other providers
 $env:INCEPTION_API_KEY="your-inception-api-key"
+$env:KIMI_API_KEY="your-kimi-code-api-key"
 ```
 
 ### Azure AI Foundry

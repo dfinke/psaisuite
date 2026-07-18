@@ -13,6 +13,7 @@ $script:ChatCompletionProviders = @{
     fireworksai = @{ Tooltip = 'AI Provider: Fireworks AI' }
     novita      = @{ Tooltip = 'AI Provider: Novita' }
     poe         = @{ Tooltip = 'AI Provider: Poe' }
+    kimi        = @{ Tooltip = 'AI Provider: Kimi Code' }
 }
 
 function ConvertTo-ModelCatalogItem {
@@ -189,6 +190,15 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 $response = Invoke-RestMethod https://api.poe.com/v1/models -Headers @{
                     "Authorization" = "Bearer $env:PoeKey"
                     "Content-Type"  = "application/json"
+                }
+
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+            }
+            'kimi' {
+                $response = Invoke-RestMethod 'https://api.kimi.com/coding/v1/models' -Headers @{
+                    'Authorization' = "Bearer $env:KIMI_API_KEY"
+                    'Content-Type'  = 'application/json'
+                    'User-Agent'    = 'PSAISuite model completion'
                 }
 
                 $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
