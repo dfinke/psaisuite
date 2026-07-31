@@ -1,3 +1,9 @@
+# v0.9.0
+
+- Added the Kimi Code provider for `Invoke-ChatCompletion` using Kimi's OpenAI-compatible API.
+- Added Kimi Code model discovery for `-Model` tab completion and tool-calling support that preserves Kimi reasoning context.
+- Added Kimi Code setup and usage documentation.
+
 # v0.8.1
 
 - Thank you to Paul Naughton [GitHub](https://github.com/pauljnav) for the model tooltip and Anthropic documentation fixes PR.
@@ -57,7 +63,7 @@
     - Uses max_completion_tokens and removes unsupported parameters; clearer error messages.
 - Argument completer:
     - Expanded live model completion for providers: openai, google, github, openrouter, anthropic, deepseek, xai, mistral.
-- Misc: small documentation touch-ups and provider consistency fixes.
+- Misc.: small documentation touch-ups and provider consistency fixes.
 
 # v0.5.1
 
