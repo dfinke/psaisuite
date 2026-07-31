@@ -63,7 +63,7 @@
     - Uses max_completion_tokens and removes unsupported parameters; clearer error messages.
 - Argument completer:
     - Expanded live model completion for providers: openai, google, github, openrouter, anthropic, deepseek, xai, mistral.
-- Misc: small documentation touch-ups and provider consistency fixes.
+- Misc.: small documentation touch-ups and provider consistency fixes.
 
 # v0.5.1
 
