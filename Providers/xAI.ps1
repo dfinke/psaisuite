@@ -17,7 +17,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Explain quantum computing'
-    $response = Invoke-XAIProvider -ModelName 'grok-1' -Message $Message
+    $response = Invoke-XAIProvider -ModelName 'grok-1' -Messages $Message
     
 .NOTES
     Requires the xAIKey environment variable to be set with a valid API key.

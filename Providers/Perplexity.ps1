@@ -14,7 +14,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
-    $response = Invoke-PerplexityProvider -ModelName 'sonar-medium-online' -Message $Message
+    $response = Invoke-PerplexityProvider -ModelName 'sonar-medium-online' -Messages $Message
     
 .NOTES
     Requires the PerplexityKey environment variable to be set with a valid API key.

@@ -14,7 +14,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Summarize the key events of World War II'
-    $response = Invoke-AnthropicProvider -ModelName 'claude-3-opus' -Message $Message
+    $response = Invoke-AnthropicProvider -ModelName 'claude-3-opus' -Messages $Message
     
 .NOTES
     Requires the AnthropicKey environment variable to be set with a valid API key.

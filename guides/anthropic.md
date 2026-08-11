@@ -27,7 +27,7 @@ $model_id = "claude-3-5-sonnet-20241022"
 # Create the model identifier
 $model = "{0}:{1}" -f $provider, $model_id
 $Message = New-ChatMessage -Prompt "What is the capital of France?"
-Invoke-ChatCompletion -Message $Message -Model $model
+Invoke-ChatCompletion -Messages $Message -Model $model
 ```
 
 ```shell

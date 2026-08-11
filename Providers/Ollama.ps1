@@ -16,7 +16,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
-    $response = Invoke-OllamaProvider -ModelName 'deepseek-r1:latest' -Message $Message
+    $response = Invoke-OllamaProvider -ModelName 'deepseek-r1:latest' -Messages $Message
     
 .NOTES
     API Reference: https://github.com/ollama/ollama/blob/main/docs/openai.md

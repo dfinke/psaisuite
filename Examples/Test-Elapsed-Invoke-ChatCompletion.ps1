@@ -18,5 +18,5 @@ $models = $(
 $message = New-ChatMessage -Prompt "What is the capital of France?"
 
 foreach ($model in $models) {    
-    Invoke-ChatCompletion -Message $message $model -IncludeElapsedTime | Select-Object ElapsedTime, model, prompt, response
+    Invoke-ChatCompletion -Messages $message $model -IncludeElapsedTime | Select-Object ElapsedTime, model, prompt, response
 }

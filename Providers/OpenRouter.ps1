@@ -14,7 +14,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
-    $response = Invoke-OpenRouterProvider -ModelName 'openrouter:google/gemini-2.5-pro-preview-03-25' -Message $Message
+    $response = Invoke-OpenRouterProvider -ModelName 'openrouter:google/gemini-2.5-pro-preview-03-25' -Messages $Message
     
 .NOTES
     Requires the OpenRouterKey environment variable to be set with a valid API key.

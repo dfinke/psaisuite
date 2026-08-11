@@ -14,7 +14,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
-    $response = Invoke-MistralProvider -ModelName 'mistral-medium' -Message $Message
+    $response = Invoke-MistralProvider -ModelName 'mistral-medium' -Messages $Message
     
 .NOTES
     Requires the MistralKey environment variable to be set with a valid API key.

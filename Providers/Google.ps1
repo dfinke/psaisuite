@@ -18,7 +18,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Explain how CRISPR works'
-    $response = Invoke-GoogleProvider -ModelName 'gemini-1.5-pro' -Message $Message
+    $response = Invoke-GoogleProvider -ModelName 'gemini-1.5-pro' -Messages $Message
 
 .EXAMPLE
     $response = Invoke-GoogleProvider -ModelName 'gemini-2.0-flash' -Messages $messages -Tools "Get-ChildItem"

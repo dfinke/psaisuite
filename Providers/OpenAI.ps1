@@ -15,9 +15,15 @@
 .PARAMETER Tools
     An array of tool definitions for function calling. Can be strings (command names) or hashtables.
 
+.PARAMETER EffortLevel
+    The requested OpenAI reasoning effort level. Supported values are model-dependent.
+
+.PARAMETER SpeedLevel
+    The requested OpenAI processing speed level, such as "fast" or "default".
+
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
-    $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Message $Message
+    $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $Message
     
 .EXAMPLE
     $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $messages -Tools "Get-ChildItem"
@@ -33,7 +39,11 @@ function Invoke-OpenAIProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [object[]]$Tools
+        [object[]]$Tools,
+        [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')]
+        [string]$EffortLevel,
+        [ValidateSet('auto', 'default', 'flex', 'fast', 'priority')]
+        [string]$SpeedLevel
     )
     
     # Process tools: if strings, register them; then convert to provider schema
@@ -62,6 +72,17 @@ function Invoke-OpenAIProvider {
         'model' = $ModelName
         'input' = $Messages
     }
+
+    if ($EffortLevel) {
+        $body['reasoning'] = @{
+            effort = $EffortLevel
+        }
+    }
+
+    if ($SpeedLevel) {
+        $body['service_tier'] = $SpeedLevel
+    }
+
     # Add tools if provided - convert from Chat Completions format to Responses API format
     if ($Tools) {
         $body['tools'] = @($Tools | ForEach-Object {
@@ -144,7 +165,13 @@ function Invoke-OpenAIProvider {
                 if (!$textOutput) {
                     return "No text content in response."
                 }
-                return $textOutput
+                return [PSCustomObject]@{
+                    Text                   = $textOutput
+                    RequestedEffortLevel   = $EffortLevel
+                    RequestedSpeedLevel    = $SpeedLevel
+                    ReasoningEffort        = if ($response.reasoning) { $response.reasoning.effort } else { $null }
+                    ServiceTier            = $response.service_tier
+                }
             }
         }
         catch {

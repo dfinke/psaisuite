@@ -26,7 +26,7 @@ $model_id = "gpt-4o"
 # Create the model identifier
 $model = "{0}:{1}" -f $provider, $model_id
 $Message = New-ChatMessage -Prompt "What is the capital of France?"
-Invoke-ChatCompletion -Message $Message -Model $model
+Invoke-ChatCompletion -Messages $Message -Model $model
 ```
 
 ```shell
@@ -37,3 +37,31 @@ Provider  : openai
 ModelName : gpt-4o
 Timestamp : Sun 03 09 2025 9:56:29 AM
 ```
+
+## Effort and speed levels
+
+OpenAI requests can optionally use Codex-style effort and speed levels. These
+options are currently supported only by the OpenAI provider and are omitted
+from the request when they are not specified.
+
+```powershell
+$message = New-ChatMessage -Prompt "Solve this carefully."
+
+$result = Invoke-ChatCompletion `
+    -Messages $message `
+    -Model "openai:gpt-5.6" `
+    -EffortLevel low `
+    -SpeedLevel fast `
+    -Raw
+
+# Values requested by the caller
+$result.EffortLevel
+$result.SpeedLevel
+
+# Effective values reported by the OpenAI Responses API
+$result.ReasoningEffort
+$result.ServiceTier
+```
+
+The normal output remains response text. Use `-Raw` to inspect the requested
+levels and the effective `ReasoningEffort` and `ServiceTier` returned by OpenAI.

@@ -38,8 +38,8 @@ Describe "Invoke-ChatCompletion" {
             $commonParameters = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
             $filteredParameters = $parameters | Where-Object { $commonParameters -notcontains $_.Name }
 
-            $filteredParameters.Count | Should -Be 6
-            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "IncludeElapsedTime", "Raw")
+            $filteredParameters.Count | Should -Be 8
+            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "EffortLevel", "SpeedLevel", "IncludeElapsedTime", "Raw")
         }
 
         It "Should test Context parameter is valueFromPipeline" {
@@ -104,6 +104,26 @@ Describe "Invoke-ChatCompletion" {
             $result.Response | Should -Not -BeNullOrEmpty
             $result.Model | Should -Be "openai:gpt-4o"
         }
+
+        It "Surfaces OpenAI effort and service tier metadata in raw output" {
+            Mock -ModuleName PSAISuite Invoke-OpenAIProvider {
+                [PSCustomObject]@{
+                    Text                 = "OpenAI response"
+                    RequestedEffortLevel = "low"
+                    RequestedSpeedLevel  = "fast"
+                    ReasoningEffort      = "low"
+                    ServiceTier          = "priority"
+                }
+            }
+
+            $result = Invoke-ChatCompletion -Messages "Test prompt" -Model "openai:gpt-5.6" -EffortLevel low -SpeedLevel fast -Raw
+
+            $result.Response | Should -Be "OpenAI response"
+            $result.EffortLevel | Should -Be "low"
+            $result.SpeedLevel | Should -Be "fast"
+            $result.ReasoningEffort | Should -Be "low"
+            $result.ServiceTier | Should -Be "priority"
+        }
     }
 
     Context "String input handling" {
@@ -156,6 +176,12 @@ Describe "Invoke-ChatCompletion" {
             { Invoke-ChatCompletion -Messages $message -Model "nonexistent:model" } | 
             Should -Throw "Unsupported provider: nonexistent. No function named Invoke-nonexistentProvider found."
         }
+
+        It "Rejects OpenAI effort and speed options for other providers" {
+            $message = New-ChatMessage -Prompt "Test"
+            { Invoke-ChatCompletion -Messages $message -Model "anthropic:claude-3-sonnet-20240229" -EffortLevel low } |
+            Should -Throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI provider."
+        }
     }
 
     Context "Tool calling functionality" {
@@ -207,6 +233,47 @@ Describe "Invoke-ChatCompletion" {
             $message = New-ChatMessage -Prompt "Use multiple tools"
             $result = Invoke-ChatCompletion -Messages $message -Model "openai:gpt-4o-mini" -Tools @("Get-ChildItem", "Get-Process") -Raw
             $result | Should -BeOfType [PSCustomObject]
+        }
+    }
+}
+
+Describe "Invoke-OpenAIProvider effort and speed options" {
+    BeforeEach {
+        $global:capturedOpenAIRequest = $null
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            param($Uri, $Method, $Headers, $Body)
+            $global:capturedOpenAIRequest = $Body | ConvertFrom-Json
+
+            [PSCustomObject]@{
+                output = @(
+                    [PSCustomObject]@{
+                        type = 'message'
+                        content = @(
+                            [PSCustomObject]@{
+                                type = 'output_text'
+                                text = 'OpenAI response'
+                            }
+                        )
+                    }
+                )
+                reasoning = [PSCustomObject]@{ effort = 'low' }
+                service_tier = 'priority'
+            }
+        }
+    }
+
+    It "Sends effort and speed levels and returns effective metadata" {
+        InModuleScope PSAISuite {
+            $result = Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(@{ role = 'user'; content = 'Test prompt' }) -EffortLevel low -SpeedLevel fast
+
+            $global:capturedOpenAIRequest.reasoning.effort | Should -Be 'low'
+            $global:capturedOpenAIRequest.service_tier | Should -Be 'fast'
+            $result.Text | Should -Be 'OpenAI response'
+            $result.RequestedEffortLevel | Should -Be 'low'
+            $result.RequestedSpeedLevel | Should -Be 'fast'
+            $result.ReasoningEffort | Should -Be 'low'
+            $result.ServiceTier | Should -Be 'priority'
         }
     }
 }

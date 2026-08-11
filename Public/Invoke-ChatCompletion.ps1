@@ -24,6 +24,14 @@ An array of tool definitions for function calling. Can be:
 - Array of strings (command names) that will be registered as tools
 - Array of hashtables (already defined tool schemas)
 
+.PARAMETER EffortLevel
+The OpenAI reasoning effort level. Supported values are model-dependent. This
+parameter is currently supported only when using the OpenAI provider.
+
+.PARAMETER SpeedLevel
+The OpenAI processing speed level, such as "fast" or "default". This parameter
+is currently supported only when using the OpenAI provider.
+
 .PARAMETER IncludeElapsedTime
 A switch parameter that, if specified, measures and includes the elapsed time of the API request in the output.
 
@@ -87,11 +95,17 @@ function Invoke-ChatCompletion {
 
         [Parameter(Position = 1)]
         [string]$Model = "openai:gpt-4o-mini",
-        
+
         [Parameter(ValueFromPipeline)]
         [object]$Context,
 
         [object[]]$Tools,
+
+        [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')]
+        [string]$EffortLevel,
+
+        [ValidateSet('auto', 'default', 'flex', 'fast', 'priority')]
+        [string]$SpeedLevel,
 
         [switch]$IncludeElapsedTime,
         [switch]$Raw
@@ -166,6 +180,10 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
+        if (($EffortLevel -or $SpeedLevel) -and $provider -ne 'openai') {
+            throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI provider."
+        }
+
         $providerFunction = "Invoke-${provider}Provider"
 
         if (-not (Get-Command $providerFunction -ErrorAction SilentlyContinue)) {
@@ -185,11 +203,30 @@ function Invoke-ChatCompletion {
             $functionParams.Tools = $Tools
         }
 
+        if ($provider -eq 'openai') {
+            if ($EffortLevel) {
+                $functionParams.EffortLevel = $EffortLevel
+            }
+
+            if ($SpeedLevel) {
+                $functionParams.SpeedLevel = $SpeedLevel
+            }
+        }
+
         if ($SystemRole) {
             $functionParams.SystemRole = $SystemRole
         }
 
-        $responseText = & $providerFunction @functionParams
+        $providerResult = & $providerFunction @functionParams
+        $providerMetadata = $null
+
+        if ($provider -eq 'openai' -and $providerResult -is [PSCustomObject] -and $providerResult.PSObject.Properties['Text']) {
+            $responseText = $providerResult.Text
+            $providerMetadata = $providerResult
+        }
+        else {
+            $responseText = $providerResult
+        }
 
         if ($IncludeElapsedTime) {
             $stopwatch.Stop()
@@ -203,6 +240,13 @@ function Invoke-ChatCompletion {
             Provider  = $provider
             ModelName = $modelName
             Timestamp = Get-Date
+        }
+
+        if ($providerMetadata) {
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'EffortLevel' -Value $providerMetadata.RequestedEffortLevel
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'SpeedLevel' -Value $providerMetadata.RequestedSpeedLevel
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'ReasoningEffort' -Value $providerMetadata.ReasoningEffort
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'ServiceTier' -Value $providerMetadata.ServiceTier
         }
 
         if ($IncludeElapsedTime) {
