@@ -1,3 +1,8 @@
+# v0.8.2
+
+- Added OpenAI `-EffortLevel` and `-SpeedLevel` options to `Invoke-ChatCompletion`.
+- OpenAI raw results now surface the requested levels and the effective reasoning effort and service tier returned by the Responses API.
+
 # v0.8.1
 
 - Thank you to Paul Naughton [GitHub](https://github.com/pauljnav) for the model tooltip and Anthropic documentation fixes PR.

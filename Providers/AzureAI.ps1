@@ -15,7 +15,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Explain quantum computing'
-    $response = Invoke-AzureAIProvider -ModelName 'gpt-4' -Message $Message 
+    $response = Invoke-AzureAIProvider -ModelName 'gpt-4' -Messages $Message
     
 .NOTES
     Requires the AzureAIKey environment variable to be set with a valid API key.

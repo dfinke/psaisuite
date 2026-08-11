@@ -15,7 +15,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
-    $response = Invoke-NebiusProvider -ModelName 'yandexgpt' -Message $Message
+    $response = Invoke-NebiusProvider -ModelName 'yandexgpt' -Messages $Message
     
 .NOTES
     Requires the NebiusKey environment variable to be set with a valid API key.

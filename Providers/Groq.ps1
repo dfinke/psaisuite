@@ -15,7 +15,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Explain quantum computing in simple terms'
-    $response = Invoke-GroqProvider -ModelName 'llama3-70b-8192' -Message $Message 
+    $response = Invoke-GroqProvider -ModelName 'llama3-70b-8192' -Messages $Message
     
 .NOTES
     Requires the GROQ_API_KEY environment variable to be set with a valid API key.

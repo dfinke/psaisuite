@@ -26,7 +26,7 @@ $model_id = "mercury-coder"
 # Create the model identifier
 $model = "{0}:{1}" -f $provider, $model_id
 $Message = New-ChatMessage -Prompt "What is a diffusion model?"
-Invoke-ChatCompletion -Message $Message -Model $model
+Invoke-ChatCompletion -Messages $Message -Model $model
 ```
 
 ```shell

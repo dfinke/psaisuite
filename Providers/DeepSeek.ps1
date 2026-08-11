@@ -14,7 +14,7 @@
 
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a binary search algorithm in Python'
-    $response = Invoke-DeepSeekProvider -ModelName 'deepseek-coder' -Message $Message
+    $response = Invoke-DeepSeekProvider -ModelName 'deepseek-coder' -Messages $Message
     
 .NOTES
     Requires the DeepSeekKey environment variable to be set with a valid API key.

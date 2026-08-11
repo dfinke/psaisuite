@@ -25,7 +25,7 @@ $providerModels | ForEach-Object -Parallel {
     $model = $_
     Write-Host "Testing $model"
 
-    Invoke-ChatCompletion -Message $using:messages -Model $model -IncludeElapsedTime | Select-Object ElapsedTime, Model, Response
+    Invoke-ChatCompletion -Messages $using:messages -Model $model -IncludeElapsedTime | Select-Object ElapsedTime, Model, Response
 } | Format-List
 
 <#

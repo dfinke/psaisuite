@@ -19,5 +19,5 @@ $message = New-ChatMessage -Prompt "What is the capital of France?"
 foreach ($model in $models) {
     Write-Host "Testing $model"
     
-    Invoke-ChatCompletion -Message $message -Model $model
+    Invoke-ChatCompletion -Messages $message -Model $model
 }
