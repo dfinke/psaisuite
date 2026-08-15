@@ -5,6 +5,7 @@
 .DESCRIPTION
     The Invoke-AzureAIProvider function sends requests to the Azure AI Foundry API and returns the generated content.
     It requires an API key to be set in the environment variable 'AzureAIKey' and an endpoint URL in 'AzureAIEndpoint'.
+    Supports Azure OpenAI deployment endpoints as well as Azure AI Foundry model endpoints, including Microsoft MAI models.
 
 .PARAMETER ModelName
     The name of the Azure AI model to use (e.g., 'gpt-4', 'gpt-35-turbo'). 
@@ -16,6 +17,9 @@
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Explain quantum computing'
     $response = Invoke-AzureAIProvider -ModelName 'gpt-4' -Messages $Message
+
+.EXAMPLE
+    $response = Invoke-AzureAIProvider -ModelName 'MAI-DS-R1' -Messages $Message
     
 .NOTES
     Requires the AzureAIKey environment variable to be set with a valid API key.
@@ -41,22 +45,34 @@ function Invoke-AzureAIProvider {
     $apiKey = $env:AzureAIKey
     $endpoint = $env:AzureAIEndpoint.TrimEnd('/')
     
-    # Determine API version based on the model
-    $apiVersion = "2023-05-15"
-    # Special handling for o3-mini model which requires a newer API version
-    if ($ModelName -eq "o3-mini") {
-        $apiVersion = "2024-12-01-preview"
-    }
-    
-    # Construct the body based on the Azure OpenAI API format
     $body = @{
         'messages'              = $Messages
         'max_completion_tokens' = 800
-        # Removed temperature parameter as the API only supports the default value (1)
     }
-
-    # Azure AI uses the API key in the header as api-key
-    $Uri = "$endpoint/openai/deployments/$ModelName/chat/completions?api-version=$apiVersion"
+    
+    if ($endpoint -match '/openai/v1$') {
+        $Uri = "$endpoint/chat/completions"
+        $body['model'] = $ModelName
+    }
+    elseif ($endpoint -match '\.services\.ai\.azure\.com(?:/models)?$') {
+        if ($endpoint -match '/models$') {
+            $baseEndpoint = $endpoint
+        }
+        else {
+            $baseEndpoint = "$endpoint/models"
+        }
+        $Uri = "$baseEndpoint/chat/completions?api-version=2024-05-01-preview"
+        $body['model'] = $ModelName
+    }
+    else {
+        # Determine API version based on the model
+        $apiVersion = "2023-05-15"
+        # Special handling for o3-mini model which requires a newer API version
+        if ($ModelName -eq "o3-mini") {
+            $apiVersion = "2024-12-01-preview"
+        }
+        $Uri = "$endpoint/openai/deployments/$ModelName/chat/completions?api-version=$apiVersion"
+    }
     
     $params = @{
         Uri     = $Uri
