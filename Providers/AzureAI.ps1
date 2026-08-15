@@ -19,6 +19,7 @@
     $response = Invoke-AzureAIProvider -ModelName 'gpt-4' -Messages $Message
 
 .EXAMPLE
+    $Message = New-ChatMessage -Prompt 'Explain the bitter lesson'
     $response = Invoke-AzureAIProvider -ModelName 'MAI-DS-R1' -Messages $Message
     
 .NOTES
@@ -44,6 +45,7 @@ function Invoke-AzureAIProvider {
     
     $apiKey = $env:AzureAIKey
     $endpoint = $env:AzureAIEndpoint.TrimEnd('/')
+    $endpointUri = [Uri]$endpoint
     
     $body = @{
         'messages'              = $Messages
@@ -54,8 +56,8 @@ function Invoke-AzureAIProvider {
         $Uri = "$endpoint/chat/completions"
         $body['model'] = $ModelName
     }
-    elseif ($endpoint -match '\.services\.ai\.azure\.com(?:/models)?$') {
-        if ($endpoint -match '/models$') {
+    elseif ($endpointUri.Host -match '\.services\.ai\.azure\.com$' -and $endpointUri.AbsolutePath -in @('/', '/models')) {
+        if ($endpointUri.AbsolutePath -eq '/models') {
             $baseEndpoint = $endpoint
         }
         else {

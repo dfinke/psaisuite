@@ -3,7 +3,7 @@
 # Tooltip can be custom per provider.
 $script:ChatCompletionProviders = @{
     openai      = @{ Tooltip = 'AI Provider: OpenAI' }
-    azureai     = @{ Tooltip = 'AI Provider: Azure AI Foundry' }
+    azureai     = @{ Tooltip = 'AI Provider: Azure AI (OpenAI / Foundry)' }
     google      = @{ Tooltip = 'AI Provider: Google' }
     github      = @{ Tooltip = 'AI Provider: GitHub' }
     openrouter  = @{ Tooltip = 'AI Provider: OpenRouter' }

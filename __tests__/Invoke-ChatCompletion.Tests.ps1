@@ -380,6 +380,7 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
                 $result = Invoke-AzureAIProvider -ModelName 'MAI-DS-R1' -Messages @(@{ role = 'user'; content = 'Hello' })
 
                 $global:capturedAzureAIRequest.Uri | Should -Be 'https://contoso.services.ai.azure.com/openai/v1/chat/completions'
+                $global:capturedAzureAIRequest.Headers['api-key'] | Should -Be 'test-key'
                 $global:capturedAzureAIRequest.Body.model | Should -Be 'MAI-DS-R1'
                 $result | Should -Be 'Foundry OpenAI response'
             }
