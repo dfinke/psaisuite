@@ -168,6 +168,38 @@ Invoke-ChatCompletion -Messages "What's the weather in New York?" -Tools $custom
 
 Currently, tool calling is supported for the OpenAI, xAI, Anthropic, and Google providers. Support for other providers will be added in future updates.
 
+### OpenAI instructions and tool workflows
+
+OpenAI system and developer messages are sent as Responses API instructions and
+remain available across tool-calling rounds. Structured text content is
+supported as well:
+
+```powershell
+$messages = @(
+    @{ role = 'system'; content = @(@{ type = 'input_text'; text = 'Use standard Markdown links.' }) }
+    @{ role = 'developer'; content = 'Keep the response concise.' }
+    @{ role = 'user'; content = 'Create an index of the project.' }
+)
+
+Invoke-ChatCompletion -Messages $messages -Model 'openai:gpt-5.6'
+```
+
+For OpenAI tool workflows, `-MaxIterations` controls the maximum number of
+tool-calling rounds and defaults to 5:
+
+```powershell
+Invoke-ChatCompletion `
+    -Messages 'Find the files and summarize their contents.' `
+    -Model 'openai:gpt-5.6' `
+    -Tools 'Get-ChildItem' `
+    -MaxIterations 10
+```
+
+OpenAI effort values are model-dependent. The accepted values are `none`,
+`minimal`, `low`, `medium`, `high`, `xhigh`, and `max`. When an `AGENTS.md`
+file is present in the current project path or one of its project ancestors,
+it is loaded as project guidance and refreshed between tool rounds.
+
 Using `PSAISuite` to generate chat completion responses from different providers.
 
 ### List Available Providers
