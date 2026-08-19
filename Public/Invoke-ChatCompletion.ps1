@@ -24,6 +24,11 @@ An array of tool definitions for function calling. Can be:
 - Array of strings (command names) that will be registered as tools
 - Array of hashtables (already defined tool schemas)
 
+.PARAMETER MaxIterations
+The maximum number of OpenAI Responses API tool-calling rounds allowed before
+the request stops. This parameter is currently supported only when using the
+OpenAI provider and defaults to 5.
+
 .PARAMETER EffortLevel
 The OpenAI reasoning effort level. Supported values are model-dependent. This
 parameter is currently supported only when using the OpenAI provider.
@@ -100,6 +105,9 @@ function Invoke-ChatCompletion {
         [object]$Context,
 
         [object[]]$Tools,
+
+        [ValidateRange(1, 100)]
+        [int]$MaxIterations = 5,
 
         [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')]
         [string]$EffortLevel,
@@ -180,6 +188,10 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
+        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -ne 'openai') {
+            throw "MaxIterations is currently supported only for the OpenAI provider."
+        }
+
         if (($EffortLevel -or $SpeedLevel) -and $provider -ne 'openai') {
             throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI provider."
         }
@@ -204,6 +216,8 @@ function Invoke-ChatCompletion {
         }
 
         if ($provider -eq 'openai') {
+            $functionParams.MaxIterations = $MaxIterations
+
             if ($EffortLevel) {
                 $functionParams.EffortLevel = $EffortLevel
             }
@@ -211,10 +225,6 @@ function Invoke-ChatCompletion {
             if ($SpeedLevel) {
                 $functionParams.SpeedLevel = $SpeedLevel
             }
-        }
-
-        if ($SystemRole) {
-            $functionParams.SystemRole = $SystemRole
         }
 
         $providerResult = & $providerFunction @functionParams
@@ -243,6 +253,7 @@ function Invoke-ChatCompletion {
         }
 
         if ($providerMetadata) {
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'MaxIterations' -Value $providerMetadata.MaxIterations
             $responseObject | Add-Member -MemberType NoteProperty -Name 'EffortLevel' -Value $providerMetadata.RequestedEffortLevel
             $responseObject | Add-Member -MemberType NoteProperty -Name 'SpeedLevel' -Value $providerMetadata.RequestedSpeedLevel
             $responseObject | Add-Member -MemberType NoteProperty -Name 'ReasoningEffort' -Value $providerMetadata.ReasoningEffort
@@ -251,10 +262,6 @@ function Invoke-ChatCompletion {
 
         if ($IncludeElapsedTime) {
             $responseObject | Add-Member -MemberType NoteProperty -Name 'ElapsedTime' -Value $elapsedTime
-        }
-
-        if ($SystemRole) {
-            $responseObject | Add-Member -MemberType NoteProperty -Name 'SystemRole' -Value $SystemRole
         }
 
         if ($Raw) {

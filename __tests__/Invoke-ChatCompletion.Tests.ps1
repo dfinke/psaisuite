@@ -38,8 +38,8 @@ Describe "Invoke-ChatCompletion" {
             $commonParameters = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
             $filteredParameters = $parameters | Where-Object { $commonParameters -notcontains $_.Name }
 
-            $filteredParameters.Count | Should -Be 8
-            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "EffortLevel", "SpeedLevel", "IncludeElapsedTime", "Raw")
+            $filteredParameters.Count | Should -Be 9
+            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "MaxIterations", "EffortLevel", "SpeedLevel", "IncludeElapsedTime", "Raw")
         }
 
         It "Should test Context parameter is valueFromPipeline" {
@@ -51,6 +51,18 @@ Describe "Invoke-ChatCompletion" {
         It "Should accept Tools parameter" {
             $actual = (Get-Command Invoke-ChatCompletion)
             $actual.Parameters.Tools | Should -Not -BeNullOrEmpty
+        }
+
+        It "Exposes the supported OpenAI reasoning effort levels" {
+            $effortParameter = (Get-Command Invoke-ChatCompletion).Parameters['EffortLevel']
+            $validateSet = $effortParameter.Attributes |
+                Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+
+            @($validateSet.ValidValues) | Should -Be @('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')
+        }
+
+        It "Rejects effort levels that are not supported by OpenAI" {
+            { Invoke-ChatCompletion -Messages "Test prompt" -EffortLevel ultrafast } | Should -Throw
         }
     }
 
@@ -124,6 +136,19 @@ Describe "Invoke-ChatCompletion" {
             $result.ReasoningEffort | Should -Be "low"
             $result.ServiceTier | Should -Be "priority"
         }
+
+        It "Passes OpenAI max iterations to the provider" {
+            $global:capturedMaxIterations = $null
+            Mock -ModuleName PSAISuite Invoke-OpenAIProvider {
+                param($ModelName, $Messages, $MaxIterations)
+                $global:capturedMaxIterations = $MaxIterations
+                [PSCustomObject]@{ Text = "OpenAI response" }
+            }
+
+            Invoke-ChatCompletion -Messages "Test prompt" -Model "openai:gpt-5.6" -MaxIterations 12 | Out-Null
+
+            $global:capturedMaxIterations | Should -Be 12
+        }
     }
 
     Context "String input handling" {
@@ -181,6 +206,12 @@ Describe "Invoke-ChatCompletion" {
             $message = New-ChatMessage -Prompt "Test"
             { Invoke-ChatCompletion -Messages $message -Model "anthropic:claude-3-sonnet-20240229" -EffortLevel low } |
             Should -Throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI provider."
+        }
+
+        It "Rejects OpenAI max iterations for other providers" {
+            $message = New-ChatMessage -Prompt "Test"
+            { Invoke-ChatCompletion -Messages $message -Model "anthropic:claude-3-sonnet-20240229" -MaxIterations 12 } |
+            Should -Throw "MaxIterations is currently supported only for the OpenAI provider."
         }
     }
 
@@ -275,5 +306,250 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
             $result.ReasoningEffort | Should -Be 'low'
             $result.ServiceTier | Should -Be 'priority'
         }
+    }
+}
+
+Describe "Invoke-OpenAIProvider max iterations" {
+    BeforeEach {
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            [PSCustomObject]@{
+                output = @(
+                    [PSCustomObject]@{
+                        type      = 'function_call'
+                        name      = 'Missing-Test-Tool'
+                        arguments = '{}'
+                        call_id   = 'call-1'
+                    }
+                )
+            }
+        }
+    }
+
+    It "stops after the configured number of tool-calling rounds" {
+        InModuleScope PSAISuite {
+            $result = Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(@{ role = 'user'; content = 'Use a tool' }) -MaxIterations 2
+
+            $result | Should -Be 'Maximum iterations reached without completing the response after 2 iterations.'
+        }
+    }
+}
+
+Describe "Invoke-OpenAIProvider tool feedback and project instructions" {
+    BeforeEach {
+        Mock -ModuleName PSAISuite Write-Progress {}
+    }
+
+    It "returns non-terminating PowerShell tool errors to the model" {
+        $global:openAIRequestCount = 0
+        $global:capturedToolOutput = $null
+        $global:missingToolPath = Join-Path $TestDrive 'missing-file.md'
+        $global:toolFeedbackTestTool = @{
+            Name        = 'Get-Content'
+            Description = 'Reads a file.'
+            Parameters  = @{
+                type       = 'object'
+                properties = @{ Path = @{ type = 'string' } }
+                required   = @('Path')
+            }
+        }
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            $global:openAIRequestCount++
+            $request = $Body | ConvertFrom-Json
+
+            if ($global:openAIRequestCount -eq 1) {
+                return [PSCustomObject]@{
+                    output = @(
+                        [PSCustomObject]@{
+                            type      = 'function_call'
+                            name      = 'Get-Content'
+                            arguments = (@{ Path = $global:missingToolPath } | ConvertTo-Json -Compress)
+                            call_id   = 'call-error-1'
+                        }
+                    )
+                }
+            }
+
+            $global:capturedToolOutput = @($request.input | Where-Object { $_.type -eq 'function_call_output' } | Select-Object -Last 1).output
+            [PSCustomObject]@{
+                output = @(
+                    [PSCustomObject]@{
+                        type    = 'message'
+                        content = @([PSCustomObject]@{ type = 'output_text'; text = 'I received the tool error.' })
+                    }
+                )
+            }
+        }
+
+        InModuleScope PSAISuite {
+            $global:toolFeedbackTestResult = Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(@{ role = 'user'; content = 'Read the file' }) -Tools $global:toolFeedbackTestTool
+        }
+
+        $global:toolFeedbackTestResult.Text | Should -Be 'I received the tool error.'
+        $global:capturedToolOutput | Should -Match 'Error executing Get-Content'
+        $global:capturedToolOutput | Should -Match 'missing-file.md'
+    }
+
+    It "loads an AGENTS.md file created during a tool round" {
+        $global:openAIRequestCount = 0
+        $global:secondRequestInput = $null
+        $global:secondRequestInstructions = $null
+        $global:agentsTestPath = Join-Path $TestDrive 'AGENTS.md'
+
+        function global:New-PSAISuiteTestAgentsFile {
+            param([string]$Path)
+            Set-Content -LiteralPath $Path -Value '# Test project instructions`nUse the project instructions.'
+            return 'AGENTS.md created'
+        }
+
+        $global:agentsTestTool = @{
+            Name        = 'New-PSAISuiteTestAgentsFile'
+            Description = 'Creates the project instruction file.'
+            Parameters  = @{
+                type       = 'object'
+                properties = @{ Path = @{ type = 'string' } }
+                required   = @('Path')
+            }
+        }
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            $global:openAIRequestCount++
+            $request = $Body | ConvertFrom-Json
+
+            if ($global:openAIRequestCount -eq 1) {
+                return [PSCustomObject]@{
+                    output = @(
+                        [PSCustomObject]@{
+                            type      = 'function_call'
+                            name      = 'New-PSAISuiteTestAgentsFile'
+                            arguments = (@{ Path = $global:agentsTestPath } | ConvertTo-Json -Compress)
+                            call_id   = 'call-agents-1'
+                        }
+                    )
+                }
+            }
+
+            $global:secondRequestInput = @($request.input)
+            $global:secondRequestInstructions = $request.instructions
+            [PSCustomObject]@{
+                output = @(
+                    [PSCustomObject]@{
+                        type    = 'message'
+                        content = @([PSCustomObject]@{ type = 'output_text'; text = 'I loaded the project instructions.' })
+                    }
+                )
+            }
+        }
+
+        Push-Location $TestDrive
+        try {
+            InModuleScope PSAISuite {
+                $global:agentsTestResult = Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(@{ role = 'user'; content = 'Create and use project instructions' }) -Tools $global:agentsTestTool
+            }
+        }
+        finally {
+            Pop-Location
+            Remove-Item -LiteralPath Function:\New-PSAISuiteTestAgentsFile -ErrorAction SilentlyContinue
+        }
+
+        $global:agentsTestResult.Text | Should -Be 'I loaded the project instructions.'
+        $global:secondRequestInstructions | Should -Match 'Use the project instructions.'
+    }
+
+    It "sends system and developer messages through the Responses instructions field" {
+        $global:capturedInstructions = $null
+        $global:capturedInput = $null
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            $request = $Body | ConvertFrom-Json
+            $global:capturedInstructions = $request.instructions
+            $global:capturedInput = @($request.input)
+            [PSCustomObject]@{
+                output = @(
+                    [PSCustomObject]@{
+                        type    = 'message'
+                        content = @([PSCustomObject]@{ type = 'output_text'; text = 'done' })
+                    }
+                )
+            }
+        }
+
+        InModuleScope PSAISuite {
+            $result = Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(
+                @{ role = 'system'; content = @(@{ type = 'input_text'; text = 'Use standard Markdown links.' }) }
+                @{ role = 'developer'; content = 'Do not include a title.' }
+                @{ role = 'user'; content = 'Write an index.' }
+            )
+        }
+
+        $global:capturedInstructions | Should -BeLike '*Use standard Markdown links.*'
+        $global:capturedInstructions | Should -BeLike '*Do not include a title.*'
+        @($global:capturedInput).Count | Should -Be 1
+        $global:capturedInput[0].role | Should -Be 'user'
+    }
+
+    It "removes instructions from the next request when AGENTS.md is deleted" {
+        $global:openAIRequestCount = 0
+        $global:capturedInstructionsAfterRemoval = 'not-captured'
+        $global:agentsRemovalTestPath = Join-Path $TestDrive 'AGENTS.md'
+        Set-Content -LiteralPath $global:agentsRemovalTestPath -Value 'Remove these instructions after the first round.'
+
+        function global:Remove-PSAISuiteTestAgentsFile {
+            param([string]$Path)
+            Remove-Item -LiteralPath $Path -ErrorAction Stop
+            return 'AGENTS.md removed'
+        }
+
+        $global:agentsRemovalTestTool = @{
+            Name        = 'Remove-PSAISuiteTestAgentsFile'
+            Description = 'Removes the project instruction file.'
+            Parameters  = @{
+                type       = 'object'
+                properties = @{ Path = @{ type = 'string' } }
+                required   = @('Path')
+            }
+        }
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            $global:openAIRequestCount++
+            $request = $Body | ConvertFrom-Json
+
+            if ($global:openAIRequestCount -eq 1) {
+                return [PSCustomObject]@{
+                    output = @(
+                        [PSCustomObject]@{
+                            type      = 'function_call'
+                            name      = 'Remove-PSAISuiteTestAgentsFile'
+                            arguments = (@{ Path = $global:agentsRemovalTestPath } | ConvertTo-Json -Compress)
+                            call_id   = 'call-agents-removal-1'
+                        }
+                    )
+                }
+            }
+
+            $global:capturedInstructionsAfterRemoval = $request.PSObject.Properties.Name -contains 'instructions'
+            [PSCustomObject]@{
+                output = @(
+                    [PSCustomObject]@{
+                        type    = 'message'
+                        content = @([PSCustomObject]@{ type = 'output_text'; text = 'Instructions were removed.' })
+                    }
+                )
+            }
+        }
+
+        Push-Location $TestDrive
+        try {
+            InModuleScope PSAISuite {
+                $global:agentsRemovalTestResult = Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(@{ role = 'user'; content = 'Remove the project instructions' }) -Tools $global:agentsRemovalTestTool
+            }
+        }
+        finally {
+            Pop-Location
+            Remove-Item -LiteralPath Function:\Remove-PSAISuiteTestAgentsFile -ErrorAction SilentlyContinue
+        }
+
+        $global:agentsRemovalTestResult.Text | Should -Be 'Instructions were removed.'
+        $global:capturedInstructionsAfterRemoval | Should -BeFalse
     }
 }

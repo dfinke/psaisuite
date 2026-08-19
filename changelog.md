@@ -1,3 +1,23 @@
+# v0.8.5
+
+- Preserve structured system and developer message content when sending OpenAI Responses API instructions.
+- Remove stale `instructions` data when an `AGENTS.md` file is deleted during a tool workflow.
+- Restore the model-dependent OpenAI `minimal` reasoning effort value.
+- Add OpenAI instruction, tool workflow, and project instruction examples to the README and guide.
+
+# v0.8.4
+
+- OpenAI system and developer messages are sent through the Responses API `instructions` field.
+- OpenAI project instruction refreshes now update the instruction context instead of appending stale developer messages to the input history.
+- Improved the blueprint-driven harness workflow example to support alternate blueprint files and standard Markdown output.
+- Aligned OpenAI effort validation with GPT-5.6 Luna support: `none`, `low`, `medium`, `high`, `xhigh`, and `max`.
+
+# v0.8.3
+
+- Added OpenAI `-MaxIterations` to control the maximum number of tool-calling rounds.
+- OpenAI tool calls now return PowerShell command errors to the model for recovery.
+- Added timestamped OpenAI tool workflow progress and automatic `AGENTS.md` project instruction discovery and refresh.
+
 # v0.8.2
 
 - Added OpenAI `-EffortLevel` and `-SpeedLevel` options to `Invoke-ChatCompletion`.
