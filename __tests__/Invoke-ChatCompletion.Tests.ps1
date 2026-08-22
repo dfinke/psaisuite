@@ -307,6 +307,116 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
             $result.ServiceTier | Should -Be 'priority'
         }
     }
+
+    Describe "Invoke-AzureAIProvider endpoint selection" {
+        BeforeEach {
+            $script:originalAzureAIKey = $env:AzureAIKey
+            $script:originalAzureAIEndpoint = $env:AzureAIEndpoint
+            $env:AzureAIKey = 'test-key'
+            $global:capturedAzureAIRequest = $null
+        }
+
+        AfterEach {
+            $env:AzureAIKey = $script:originalAzureAIKey
+            $env:AzureAIEndpoint = $script:originalAzureAIEndpoint
+        }
+
+        It "Uses the Azure OpenAI deployments endpoint for legacy Azure OpenAI resources" {
+            Mock -ModuleName PSAISuite Invoke-RestMethod {
+                param($Uri, $Method, $Headers, $Body)
+                $global:capturedAzureAIRequest = @{
+                    Uri     = $Uri
+                    Headers = $Headers
+                    Body    = $Body | ConvertFrom-Json -AsHashtable
+                }
+
+                [PSCustomObject]@{
+                    choices = @(
+                        [PSCustomObject]@{
+                            message = [PSCustomObject]@{
+                                content = 'Azure OpenAI response'
+                            }
+                        }
+                    )
+                }
+            }
+
+            InModuleScope PSAISuite {
+                $env:AzureAIEndpoint = 'https://contoso.openai.azure.com'
+
+                $result = Invoke-AzureAIProvider -ModelName 'gpt-4o' -Messages @(@{ role = 'user'; content = 'Hello' })
+
+                $global:capturedAzureAIRequest.Uri | Should -Be 'https://contoso.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2023-05-15'
+                $global:capturedAzureAIRequest.Headers['api-key'] | Should -Be 'test-key'
+                $global:capturedAzureAIRequest.Body.ContainsKey('model') | Should -BeFalse
+                $result | Should -Be 'Azure OpenAI response'
+            }
+        }
+
+        It "Uses the Azure AI Foundry models endpoint for MAI deployments" {
+            Mock -ModuleName PSAISuite Invoke-RestMethod {
+                param($Uri, $Method, $Headers, $Body)
+                $global:capturedAzureAIRequest = @{
+                    Uri     = $Uri
+                    Headers = $Headers
+                    Body    = $Body | ConvertFrom-Json -AsHashtable
+                }
+
+                [PSCustomObject]@{
+                    choices = @(
+                        [PSCustomObject]@{
+                            message = [PSCustomObject]@{
+                                content = 'MAI response'
+                            }
+                        }
+                    )
+                }
+            }
+
+            InModuleScope PSAISuite {
+                $env:AzureAIEndpoint = 'https://contoso.services.ai.azure.com'
+
+                $result = Invoke-AzureAIProvider -ModelName 'MAI-DS-R1' -Messages @(@{ role = 'user'; content = 'Hello' })
+
+                $global:capturedAzureAIRequest.Uri | Should -Be 'https://contoso.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview'
+                $global:capturedAzureAIRequest.Headers['api-key'] | Should -Be 'test-key'
+                $global:capturedAzureAIRequest.Body.model | Should -Be 'MAI-DS-R1'
+                $result | Should -Be 'MAI response'
+            }
+        }
+
+        It "Uses the OpenAI-compatible Foundry endpoint when /openai/v1 is configured" {
+            Mock -ModuleName PSAISuite Invoke-RestMethod {
+                param($Uri, $Method, $Headers, $Body)
+                $global:capturedAzureAIRequest = @{
+                    Uri     = $Uri
+                    Headers = $Headers
+                    Body    = $Body | ConvertFrom-Json -AsHashtable
+                }
+
+                [PSCustomObject]@{
+                    choices = @(
+                        [PSCustomObject]@{
+                            message = [PSCustomObject]@{
+                                content = 'Foundry OpenAI response'
+                            }
+                        }
+                    )
+                }
+            }
+
+            InModuleScope PSAISuite {
+                $env:AzureAIEndpoint = 'https://contoso.services.ai.azure.com/openai/v1'
+
+                $result = Invoke-AzureAIProvider -ModelName 'MAI-DS-R1' -Messages @(@{ role = 'user'; content = 'Hello' })
+
+                $global:capturedAzureAIRequest.Uri | Should -Be 'https://contoso.services.ai.azure.com/openai/v1/chat/completions'
+                $global:capturedAzureAIRequest.Headers['api-key'] | Should -Be 'test-key'
+                $global:capturedAzureAIRequest.Body.model | Should -Be 'MAI-DS-R1'
+                $result | Should -Be 'Foundry OpenAI response'
+            }
+        }
+    }
 }
 
 Describe "Invoke-OpenAIProvider max iterations" {
