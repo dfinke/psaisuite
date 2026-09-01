@@ -149,6 +149,19 @@ Describe "Invoke-ChatCompletion" {
 
             $global:capturedMaxIterations | Should -Be 12
         }
+
+        It "Passes Anthropic max iterations to the provider" {
+            $global:capturedMaxIterations = $null
+            Mock -ModuleName PSAISuite Invoke-AnthropicProvider {
+                param($ModelName, $Messages, $MaxIterations)
+                $global:capturedMaxIterations = $MaxIterations
+                return "Anthropic response"
+            }
+
+            Invoke-ChatCompletion -Messages "Test prompt" -Model "anthropic:claude-3-sonnet-20240229" -MaxIterations 12 | Out-Null
+
+            $global:capturedMaxIterations | Should -Be 12
+        }
     }
 
     Context "String input handling" {
@@ -202,16 +215,33 @@ Describe "Invoke-ChatCompletion" {
             Should -Throw "Unsupported provider: nonexistent. No function named Invoke-nonexistentProvider found."
         }
 
-        It "Rejects OpenAI effort and speed options for other providers" {
-            $message = New-ChatMessage -Prompt "Test"
-            { Invoke-ChatCompletion -Messages $message -Model "anthropic:claude-3-sonnet-20240229" -EffortLevel low } |
-            Should -Throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI provider."
+        It "Accepts Anthropic effort and speed options" {
+            Mock -ModuleName PSAISuite Invoke-AnthropicProvider {
+                param($ModelName, $Messages, $EffortLevel, $SpeedLevel)
+                $global:capturedAnthropicOptions = @{
+                    EffortLevel = $EffortLevel
+                    SpeedLevel  = $SpeedLevel
+                }
+                [PSCustomObject]@{ Text = 'Anthropic response' }
+            }
+
+            $result = Invoke-ChatCompletion -Messages 'Test' -Model 'anthropic:claude-sonnet-4-6' -EffortLevel low -SpeedLevel fast -Raw
+
+            $global:capturedAnthropicOptions.EffortLevel | Should -Be 'low'
+            $global:capturedAnthropicOptions.SpeedLevel | Should -Be 'fast'
+            $result.Response | Should -Be 'Anthropic response'
         }
 
-        It "Rejects OpenAI max iterations for other providers" {
+        It "Rejects unsupported Anthropic effort levels" {
+            $message = New-ChatMessage -Prompt 'Test'
+            { Invoke-ChatCompletion -Messages $message -Model 'anthropic:claude-sonnet-4-6' -EffortLevel minimal } |
+            Should -Throw 'Anthropic supports effort levels: low, medium, high, xhigh, and max.'
+        }
+
+        It "Rejects max iterations for providers without support" {
             $message = New-ChatMessage -Prompt "Test"
-            { Invoke-ChatCompletion -Messages $message -Model "anthropic:claude-3-sonnet-20240229" -MaxIterations 12 } |
-            Should -Throw "MaxIterations is currently supported only for the OpenAI provider."
+            { Invoke-ChatCompletion -Messages $message -Model "google:gemini-2.0-flash" -MaxIterations 12 } |
+            Should -Throw "MaxIterations is currently supported only for the OpenAI and Anthropic providers."
         }
     }
 
@@ -330,6 +360,78 @@ Describe "Invoke-OpenAIProvider max iterations" {
             $result = Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(@{ role = 'user'; content = 'Use a tool' }) -MaxIterations 2
 
             $result | Should -Be 'Maximum iterations reached without completing the response after 2 iterations.'
+        }
+    }
+}
+
+Describe "Invoke-AnthropicProvider max iterations" {
+    BeforeEach {
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            [PSCustomObject]@{
+                content = @(
+                    [PSCustomObject]@{
+                        type        = 'tool_use'
+                        name        = 'Missing-Test-Tool'
+                        input       = @{}
+                        id          = 'tool-1'
+                    }
+                )
+            }
+        }
+    }
+
+    It "stops after the configured number of tool-calling rounds" {
+        InModuleScope PSAISuite {
+            $result = Invoke-AnthropicProvider -ModelName 'claude-3-sonnet-20240229' -Messages @(@{ role = 'user'; content = 'Use a tool' }) -MaxIterations 2
+
+            $result | Should -Be 'Maximum iterations reached without completing the response after 2 iterations.'
+        }
+    }
+}
+
+Describe "Invoke-AnthropicProvider effort and speed options" {
+    BeforeEach {
+        $global:capturedAnthropicRequest = $null
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            param($Uri, $Method, $Headers, $Body)
+            $global:capturedAnthropicRequest = $Body | ConvertFrom-Json
+
+            [PSCustomObject]@{
+                content = @(
+                    [PSCustomObject]@{
+                        type = 'text'
+                        text = 'Anthropic response'
+                    }
+                )
+                usage = [PSCustomObject]@{
+                    output_tokens_details = [PSCustomObject]@{ thinking_tokens = 100 }
+                    service_tier = 'priority'
+                }
+            }
+        }
+    }
+
+    It "Sends effort and speed levels and returns effective metadata" {
+        InModuleScope PSAISuite {
+            $result = Invoke-AnthropicProvider -ModelName 'claude-sonnet-4-6' -Messages @(@{ role = 'user'; content = 'Test prompt' }) -EffortLevel low -SpeedLevel fast
+
+            $global:capturedAnthropicRequest.thinking.type | Should -Be 'adaptive'
+            $global:capturedAnthropicRequest.output_config.effort | Should -Be 'low'
+            $global:capturedAnthropicRequest.service_tier | Should -Be 'auto'
+            $result.Text | Should -Be 'Anthropic response'
+            $result.RequestedEffortLevel | Should -Be 'low'
+            $result.RequestedSpeedLevel | Should -Be 'fast'
+            $result.ReasoningEffort | Should -Be 'low'
+            $result.ServiceTier | Should -Be 'priority'
+        }
+    }
+
+    It "Maps flex speed to standard-only service" {
+        InModuleScope PSAISuite {
+            Invoke-AnthropicProvider -ModelName 'claude-sonnet-4-6' -Messages @(@{ role = 'user'; content = 'Test prompt' }) -SpeedLevel flex | Out-Null
+
+            $global:capturedAnthropicRequest.service_tier | Should -Be 'standard_only'
         }
     }
 }

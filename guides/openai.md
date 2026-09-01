@@ -87,8 +87,8 @@ Invoke-ChatCompletion `
     -Model 'openai:gpt-5.6'
 ```
 
-For tool-calling workflows, set `-MaxIterations` to allow more successive
-tool calls:
+For OpenAI and Anthropic tool-calling workflows, set `-MaxIterations` to allow
+more successive tool calls. The limit defaults to 5:
 
 ```powershell
 $result = Invoke-ChatCompletion `

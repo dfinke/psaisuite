@@ -1,3 +1,9 @@
+# v0.8.6
+
+- Added `-MaxIterations` support to the Anthropic provider for limiting successive tool-calling rounds.
+- Added Anthropic `-EffortLevel` and `-SpeedLevel` support for adaptive thinking and service-tier selection.
+- Updated the README and provider guides with Anthropic tool workflow examples.
+
 # v0.8.5
 
 - Preserve structured system and developer message content when sending OpenAI Responses API instructions.

@@ -25,17 +25,17 @@ An array of tool definitions for function calling. Can be:
 - Array of hashtables (already defined tool schemas)
 
 .PARAMETER MaxIterations
-The maximum number of OpenAI Responses API tool-calling rounds allowed before
-the request stops. This parameter is currently supported only when using the
-OpenAI provider and defaults to 5.
+The maximum number of tool-calling rounds allowed before the request stops.
+This parameter is supported by the OpenAI and Anthropic providers and defaults
+to 5.
 
 .PARAMETER EffortLevel
-The OpenAI reasoning effort level. Supported values are model-dependent. This
-parameter is currently supported only when using the OpenAI provider.
+The provider reasoning effort level. OpenAI supports all listed values;
+Anthropic supports low, medium, high, xhigh, and max.
 
 .PARAMETER SpeedLevel
-The OpenAI processing speed level, such as "fast" or "default". This parameter
-is currently supported only when using the OpenAI provider.
+The provider processing speed level. Anthropic maps fast and priority to its
+priority-capable tier and flex to standard-only capacity.
 
 .PARAMETER IncludeElapsedTime
 A switch parameter that, if specified, measures and includes the elapsed time of the API request in the output.
@@ -188,12 +188,16 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
-        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -ne 'openai') {
-            throw "MaxIterations is currently supported only for the OpenAI provider."
+        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -notin @('openai', 'anthropic')) {
+            throw "MaxIterations is currently supported only for the OpenAI and Anthropic providers."
         }
 
-        if (($EffortLevel -or $SpeedLevel) -and $provider -ne 'openai') {
-            throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI provider."
+        if ($EffortLevel -and $provider -eq 'anthropic' -and @('low', 'medium', 'high', 'xhigh', 'max') -notcontains $EffortLevel) {
+            throw "Anthropic supports effort levels: low, medium, high, xhigh, and max."
+        }
+
+        if (($EffortLevel -or $SpeedLevel) -and $provider -notin @('openai', 'anthropic')) {
+            throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI and Anthropic providers."
         }
 
         $providerFunction = "Invoke-${provider}Provider"
@@ -215,7 +219,7 @@ function Invoke-ChatCompletion {
             $functionParams.Tools = $Tools
         }
 
-        if ($provider -eq 'openai') {
+        if ($provider -in @('openai', 'anthropic')) {
             $functionParams.MaxIterations = $MaxIterations
 
             if ($EffortLevel) {
@@ -230,7 +234,7 @@ function Invoke-ChatCompletion {
         $providerResult = & $providerFunction @functionParams
         $providerMetadata = $null
 
-        if ($provider -eq 'openai' -and $providerResult -is [PSCustomObject] -and $providerResult.PSObject.Properties['Text']) {
+        if ($provider -in @('openai', 'anthropic') -and $providerResult -is [PSCustomObject] -and $providerResult.PSObject.Properties['Text']) {
             $responseText = $providerResult.Text
             $providerMetadata = $providerResult
         }

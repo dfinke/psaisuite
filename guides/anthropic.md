@@ -38,3 +38,28 @@ Provider  : anthropic
 ModelName : claude-3-5-sonnet-20241022
 Timestamp : Sun 03 09 2025 9:23:42 AM
 ```
+
+## Tool calling and iteration limits
+
+Anthropic models can call registered PowerShell tools. Use `-MaxIterations` to
+control how many successive tool-calling rounds are allowed; it defaults to 5.
+
+```powershell
+Invoke-ChatCompletion `
+	-Messages "Find the files and summarize their contents." `
+	-Model "anthropic:claude-3-5-sonnet-20241022" `
+	-Tools "Get-ChildItem" `
+	-MaxIterations 10
+```
+
+Anthropic adaptive thinking can be configured with `-EffortLevel` values of
+`low`, `medium`, `high`, `xhigh`, and `max`. The `-SpeedLevel` option accepts
+`fast`, `priority`, and `flex`; `flex` maps to standard-only capacity.
+
+```powershell
+Invoke-ChatCompletion `
+	-Messages "Solve this carefully." `
+	-Model "anthropic:claude-sonnet-4-6" `
+	-EffortLevel medium `
+	-SpeedLevel fast
+```

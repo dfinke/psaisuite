@@ -184,8 +184,8 @@ $messages = @(
 Invoke-ChatCompletion -Messages $messages -Model 'openai:gpt-5.6'
 ```
 
-For OpenAI tool workflows, `-MaxIterations` controls the maximum number of
-tool-calling rounds and defaults to 5:
+For OpenAI and Anthropic tool workflows, `-MaxIterations` controls the maximum
+number of tool-calling rounds and defaults to 5:
 
 ```powershell
 Invoke-ChatCompletion `
@@ -195,10 +195,25 @@ Invoke-ChatCompletion `
     -MaxIterations 10
 ```
 
+The same limit can be used with Anthropic models:
+
+```powershell
+Invoke-ChatCompletion `
+    -Messages 'Find the files and summarize their contents.' `
+    -Model 'anthropic:claude-3-5-sonnet-20241022' `
+    -Tools 'Get-ChildItem' `
+    -MaxIterations 10
+```
+
 OpenAI effort values are model-dependent. The accepted values are `none`,
 `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`. When an `AGENTS.md`
 file is present in the current project path or one of its project ancestors,
 it is loaded as project guidance and refreshed between tool rounds.
+
+Anthropic models support adaptive thinking with `-EffortLevel` values of `low`,
+`medium`, `high`, `xhigh`, and `max`. Use `-SpeedLevel fast` or
+`-SpeedLevel priority` for the provider's priority-capable tier, or
+`-SpeedLevel flex` to request standard-only capacity.
 
 Using `PSAISuite` to generate chat completion responses from different providers.
 
