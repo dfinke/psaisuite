@@ -38,3 +38,25 @@ Provider  : anthropic
 ModelName : claude-3-5-sonnet-20241022
 Timestamp : Sun 03 09 2025 9:23:42 AM
 ```
+
+## Effort and speed
+
+Anthropic models that support adaptive thinking can receive an effort level through
+`output_config.effort`. Supported values are `low`, `medium`, `high`, `xhigh`, and `max`.
+The model must support adaptive thinking; older Claude models may reject this option.
+
+```powershell
+Invoke-ChatCompletion `
+	-Messages "Review this implementation" `
+	-Model "anthropic:claude-sonnet-4-6" `
+	-EffortLevel high `
+	-SpeedLevel fast
+```
+
+Anthropic maps `fast` and `priority` to its priority-capable service tier, while `flex`
+uses the standard-only tier. The raw response includes the requested levels and the
+service tier reported by Anthropic.
+
+When Anthropic handles a request or executes tools, `Invoke-ChatCompletion` displays
+timestamped progress for each request round and tool, then closes the progress display
+when the response completes.

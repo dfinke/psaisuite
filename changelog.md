@@ -1,3 +1,10 @@
+# v0.8.6
+
+- Added Anthropic adaptive thinking effort levels: `low`, `medium`, `high`, `xhigh`, and `max`.
+- Added Anthropic speed-level mapping to the Messages API `service_tier` option.
+- Added timestamped progress reporting for Anthropic request and tool workflows.
+- Added Anthropic effort, speed, and progress documentation and test coverage.
+
 # v0.8.5
 
 - Preserve structured system and developer message content when sending OpenAI Responses API instructions.
