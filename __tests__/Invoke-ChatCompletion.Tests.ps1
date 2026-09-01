@@ -56,7 +56,7 @@ Describe "Invoke-ChatCompletion" {
         It "Exposes the supported OpenAI reasoning effort levels" {
             $effortParameter = (Get-Command Invoke-ChatCompletion).Parameters['EffortLevel']
             $validateSet = $effortParameter.Attributes |
-                Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+            Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
 
             @($validateSet.ValidValues) | Should -Be @('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')
         }
@@ -202,10 +202,33 @@ Describe "Invoke-ChatCompletion" {
             Should -Throw "Unsupported provider: nonexistent. No function named Invoke-nonexistentProvider found."
         }
 
-        It "Rejects OpenAI effort and speed options for other providers" {
+        It "Rejects effort and speed options for providers without support" {
             $message = New-ChatMessage -Prompt "Test"
-            { Invoke-ChatCompletion -Messages $message -Model "anthropic:claude-3-sonnet-20240229" -EffortLevel low } |
-            Should -Throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI provider."
+            { Invoke-ChatCompletion -Messages $message -Model "google:gemini-2.0-flash" -EffortLevel low } |
+            Should -Throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI and Anthropic providers."
+        }
+
+        It "Accepts Anthropic effort and speed options" {
+            Mock -ModuleName PSAISuite Invoke-AnthropicProvider {
+                param($ModelName, $Messages, $EffortLevel, $SpeedLevel)
+                $global:capturedAnthropicOptions = @{
+                    EffortLevel = $EffortLevel
+                    SpeedLevel  = $SpeedLevel
+                }
+                [PSCustomObject]@{ Text = "Anthropic response" }
+            }
+
+            $result = Invoke-ChatCompletion -Messages "Test" -Model "anthropic:claude-sonnet-4-6" -EffortLevel low -SpeedLevel fast -Raw
+
+            $global:capturedAnthropicOptions.EffortLevel | Should -Be "low"
+            $global:capturedAnthropicOptions.SpeedLevel | Should -Be "fast"
+            $result.Response | Should -Be "Anthropic response"
+        }
+
+        It "Rejects Anthropic effort levels it does not support" {
+            $message = New-ChatMessage -Prompt "Test"
+            { Invoke-ChatCompletion -Messages $message -Model "anthropic:claude-sonnet-4-6" -EffortLevel minimal } |
+            Should -Throw "Anthropic supports effort levels: low, medium, high, xhigh, and max."
         }
 
         It "Rejects OpenAI max iterations for other providers" {
@@ -277,9 +300,9 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
             $global:capturedOpenAIRequest = $Body | ConvertFrom-Json
 
             [PSCustomObject]@{
-                output = @(
+                output       = @(
                     [PSCustomObject]@{
-                        type = 'message'
+                        type    = 'message'
                         content = @(
                             [PSCustomObject]@{
                                 type = 'output_text'
@@ -288,7 +311,7 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
                         )
                     }
                 )
-                reasoning = [PSCustomObject]@{ effort = 'low' }
+                reasoning    = [PSCustomObject]@{ effort = 'low' }
                 service_tier = 'priority'
             }
         }
@@ -305,6 +328,56 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
             $result.RequestedSpeedLevel | Should -Be 'fast'
             $result.ReasoningEffort | Should -Be 'low'
             $result.ServiceTier | Should -Be 'priority'
+        }
+    }
+}
+
+Describe "Invoke-AnthropicProvider effort and speed options" {
+    BeforeEach {
+        $global:capturedAnthropicRequest = $null
+
+        Mock -ModuleName PSAISuite Write-Progress {}
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            param($Uri, $Method, $Headers, $Body)
+            $global:capturedAnthropicRequest = $Body | ConvertFrom-Json
+
+            [PSCustomObject]@{
+                content = @(
+                    [PSCustomObject]@{
+                        type = 'text'
+                        text = 'Anthropic response'
+                    }
+                )
+                usage   = [PSCustomObject]@{
+                    output_tokens_details = [PSCustomObject]@{ thinking_tokens = 100 }
+                    service_tier          = 'priority'
+                }
+            }
+        }
+    }
+
+    It "Sends effort and speed levels and returns effective metadata" {
+        InModuleScope PSAISuite {
+            $result = Invoke-AnthropicProvider -ModelName 'claude-sonnet-4-6' -Messages @(@{ role = 'user'; content = 'Test prompt' }) -EffortLevel low -SpeedLevel fast
+
+            $global:capturedAnthropicRequest.thinking.type | Should -Be 'adaptive'
+            $global:capturedAnthropicRequest.output_config.effort | Should -Be 'low'
+            $global:capturedAnthropicRequest.service_tier | Should -Be 'auto'
+            $result.Text | Should -Be 'Anthropic response'
+            $result.RequestedEffortLevel | Should -Be 'low'
+            $result.RequestedSpeedLevel | Should -Be 'fast'
+            $result.ReasoningEffort | Should -Be 'low'
+            $result.ServiceTier | Should -Be 'priority'
+            Should -Invoke Write-Progress -ModuleName PSAISuite -Times 3
+        }
+    }
+
+    It "Maps flex speed to standard-only service" {
+        InModuleScope PSAISuite {
+            Invoke-AnthropicProvider -ModelName 'claude-sonnet-4-6' -Messages @(@{ role = 'user'; content = 'Test prompt' }) -SpeedLevel flex | Out-Null
+
+            $global:capturedAnthropicRequest.service_tier | Should -Be 'standard_only'
         }
     }
 }

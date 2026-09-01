@@ -200,6 +200,25 @@ OpenAI effort values are model-dependent. The accepted values are `none`,
 file is present in the current project path or one of its project ancestors,
 it is loaded as project guidance and refreshed between tool rounds.
 
+### Anthropic effort, speed, and progress
+
+Anthropic models that support adaptive thinking accept `-EffortLevel` values of
+`low`, `medium`, `high`, `xhigh`, and `max`. `-SpeedLevel fast` and
+`-SpeedLevel priority` use Anthropic's automatic service tier selection, while
+`-SpeedLevel flex` requests standard-only capacity:
+
+```powershell
+Invoke-ChatCompletion `
+    -Messages 'Review this implementation.' `
+    -Model 'anthropic:claude-sonnet-4-6' `
+    -EffortLevel high `
+    -SpeedLevel fast
+```
+
+Anthropic and OpenAI tool workflows display timestamped progress while requests
+and tools are running, and close the progress display when the response is
+complete.
+
 Using `PSAISuite` to generate chat completion responses from different providers.
 
 ### List Available Providers
