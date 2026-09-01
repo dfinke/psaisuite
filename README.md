@@ -200,6 +200,31 @@ OpenAI effort values are model-dependent. The accepted values are `none`,
 file is present in the current project path or one of its project ancestors,
 it is loaded as project guidance and refreshed between tool rounds.
 
+### OpenAI remote MCP delegation
+
+Remote MCP is currently implemented for the OpenAI provider only. Supply
+`-MCPUrl` to add a native remote MCP tool to the OpenAI Responses API request:
+
+```powershell
+Invoke-ChatCompletion `
+    -Model 'openai:gpt-5.6-luna' `
+    -MCPUrl 'https://api.githubcopilot.com/mcp/x/all' `
+    -Prompt 'Find the latest OAuth-related issue'
+```
+
+OpenAI's service performs the remote MCP calls. PSAI Suite does not run a
+local MCP client. PSAI sets OpenAI's MCP approval mode to `never` because the
+command has no interactive approval continuation, so use trusted servers and
+appropriately scoped tokens. For `api.githubcopilot.com`, PSAI automatically uses the
+existing `$env:GITHUB_TOKEN` value unless `-MCPAuthorizationToken` is supplied.
+Use `-MCPAuthorizationToken` with a `SecureString` for other remote servers
+that require authorization. If the GitHub MCP URL is selected and no token is
+available, PSAI throws before sending the request. `-MCPPolicy` accepts `Warn`
+(default), `Require`, or `Ignore`; for other providers, Warn continues without
+MCP, Require fails before the request, and Ignore omits MCP silently. The raw
+response reports `McpRequested`, `McpApplied`, `McpProvider`, `McpPolicy`, and
+`McpWarning` when MCP is requested.
+
 Using `PSAISuite` to generate chat completion responses from different providers.
 
 ### List Available Providers

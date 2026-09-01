@@ -69,6 +69,54 @@ $result.ServiceTier
 The normal output remains response text. Use `-Raw` to inspect the requested
 levels and the effective `ReasoningEffort` and `ServiceTier` returned by OpenAI.
 
+## Remote MCP
+
+PSAI Suite supports native remote MCP delegation for the OpenAI provider only.
+When `-MCPUrl` is supplied with an OpenAI model, PSAI adds an MCP tool to the
+OpenAI Responses API request. OpenAI's service performs the remote MCP calls;
+PSAI Suite does not run a local MCP client or MCP session loop.
+The request sets OpenAI's MCP approval mode to `never` because this command
+does not currently provide an interactive approval continuation. Use trusted
+MCP servers and restrict the server or token permissions appropriately.
+
+```powershell
+$result = Invoke-ChatCompletion `
+        -Model 'openai:gpt-5.6-luna' `
+        -MCPUrl 'https://api.githubcopilot.com/mcp/x/all' `
+        -Prompt 'Find the latest OAuth-related issue' `
+        -Raw
+
+$result.Response
+$result.McpApplied
+```
+
+For the official GitHub MCP endpoint, PSAI automatically uses the existing
+`$env:GITHUB_TOKEN` value when `-MCPAuthorizationToken` is not supplied. For
+other remote servers, use `-MCPAuthorizationToken` with a `SecureString`:
+If the GitHub endpoint is selected and neither value is available, PSAI throws
+before sending the OpenAI request.
+
+```powershell
+$token = Read-Host 'MCP authorization token' -AsSecureString
+Invoke-ChatCompletion `
+        -Model 'openai:gpt-5.6-luna' `
+        -MCPUrl 'https://api.githubcopilot.com/mcp/x/all' `
+        -MCPAuthorizationToken $token `
+        -Prompt 'Find the latest OAuth-related issue'
+```
+
+`-MCPPolicy` controls graceful degradation when MCP cannot be delegated:
+
+- `Warn` (default) writes a warning and continues with the normal prompt
+    without MCP.
+- `Require` throws before sending the request.
+- `Ignore` silently continues without MCP.
+
+For non-OpenAI models, the warning and error state that PSAI Suite has not
+implemented MCP delegation for that provider. The raw response includes
+`McpRequested`, `McpApplied`, `McpProvider`, `McpPolicy`, and `McpWarning` when
+MCP was requested. Authorization tokens are not written to logs or errors.
+
 ## System instructions
 
 Pass system or developer messages alongside the user message. The OpenAI

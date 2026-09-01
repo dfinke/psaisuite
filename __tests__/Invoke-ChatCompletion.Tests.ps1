@@ -38,8 +38,8 @@ Describe "Invoke-ChatCompletion" {
             $commonParameters = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
             $filteredParameters = $parameters | Where-Object { $commonParameters -notcontains $_.Name }
 
-            $filteredParameters.Count | Should -Be 9
-            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "MaxIterations", "EffortLevel", "SpeedLevel", "IncludeElapsedTime", "Raw")
+            $filteredParameters.Count | Should -Be 12
+            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "MaxIterations", "EffortLevel", "SpeedLevel", "IncludeElapsedTime", "Raw", "MCPUrl", "MCPPolicy", "MCPAuthorizationToken")
         }
 
         It "Should test Context parameter is valueFromPipeline" {
@@ -56,7 +56,7 @@ Describe "Invoke-ChatCompletion" {
         It "Exposes the supported OpenAI reasoning effort levels" {
             $effortParameter = (Get-Command Invoke-ChatCompletion).Parameters['EffortLevel']
             $validateSet = $effortParameter.Attributes |
-                Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
+            Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
 
             @($validateSet.ValidValues) | Should -Be @('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')
         }
@@ -277,9 +277,9 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
             $global:capturedOpenAIRequest = $Body | ConvertFrom-Json
 
             [PSCustomObject]@{
-                output = @(
+                output       = @(
                     [PSCustomObject]@{
-                        type = 'message'
+                        type    = 'message'
                         content = @(
                             [PSCustomObject]@{
                                 type = 'output_text'
@@ -288,7 +288,7 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
                         )
                     }
                 )
-                reasoning = [PSCustomObject]@{ effort = 'low' }
+                reasoning    = [PSCustomObject]@{ effort = 'low' }
                 service_tier = 'priority'
             }
         }
@@ -306,6 +306,206 @@ Describe "Invoke-OpenAIProvider effort and speed options" {
             $result.ReasoningEffort | Should -Be 'low'
             $result.ServiceTier | Should -Be 'priority'
         }
+    }
+}
+
+Describe "Invoke-ChatCompletion remote MCP" {
+    BeforeEach {
+        $global:capturedMcpUri = $null
+        $global:capturedMcpRequest = $null
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            param($Uri, $Method, $Headers, $Body)
+            $global:capturedMcpUri = $Uri
+            $global:capturedMcpRequest = $Body | ConvertFrom-Json
+
+            [PSCustomObject]@{
+                output = @(
+                    [PSCustomObject]@{
+                        type    = 'message'
+                        content = @([PSCustomObject]@{ type = 'output_text'; text = 'MCP response' })
+                    }
+                )
+            }
+        }
+    }
+
+    It "uses the Responses API and adds a native remote MCP tool" {
+        $secret = 'mcp-test-secret'
+        $secureToken = New-Object System.Security.SecureString
+        foreach ($character in $secret.ToCharArray()) {
+            $secureToken.AppendChar($character)
+        }
+
+        $result = Invoke-ChatCompletion `
+            -Messages 'Find the latest OAuth-related issue' `
+            -Model 'openai:gpt-5.6-luna' `
+            -MCPUrl 'https://api.githubcopilot.com/mcp/x/all' `
+            -MCPAuthorizationToken $secureToken `
+            -Raw
+
+        $global:capturedMcpUri | Should -Be 'https://api.openai.com/v1/responses'
+        $global:capturedMcpRequest.model | Should -Be 'gpt-5.6-luna'
+        @($global:capturedMcpRequest.tools).Count | Should -Be 1
+        $global:capturedMcpRequest.tools[0].type | Should -Be 'mcp'
+        $global:capturedMcpRequest.tools[0].server_label | Should -Be 'api-githubcopilot-com'
+        $global:capturedMcpRequest.tools[0].server_url | Should -Be 'https://api.githubcopilot.com/mcp/x/all'
+        $global:capturedMcpRequest.tools[0].require_approval | Should -Be 'never'
+        $global:capturedMcpRequest.tools[0].authorization | Should -Be $secret
+        $result.McpRequested | Should -BeTrue
+        $result.McpApplied | Should -BeTrue
+        $result.McpProvider | Should -Be 'openai'
+        $result.McpPolicy | Should -Be 'Warn'
+        $result.McpWarning | Should -BeNullOrEmpty
+    }
+
+    It "uses GITHUB_TOKEN for the official GitHub MCP endpoint" {
+        $secret = 'github-env-mcp-secret'
+        $previousToken = $env:GITHUB_TOKEN
+        $env:GITHUB_TOKEN = $secret
+
+        try {
+            Invoke-ChatCompletion `
+                -Messages 'List issues on dfinke psai' `
+                -Model 'openai:gpt-5.6-luna' `
+                -MCPUrl 'https://api.githubcopilot.com/mcp/x/all' | Out-Null
+        }
+        finally {
+            $env:GITHUB_TOKEN = $previousToken
+        }
+
+        $global:capturedMcpRequest.tools[0].authorization | Should -Be $secret
+    }
+
+    It "throws before sending a GitHub MCP request when GITHUB_TOKEN is missing" {
+        $previousToken = $env:GITHUB_TOKEN
+        $env:GITHUB_TOKEN = $null
+
+        try {
+            {
+                Invoke-ChatCompletion `
+                    -Messages 'List issues on dfinke psai' `
+                    -Model 'openai:gpt-5.6-luna' `
+                    -MCPUrl 'https://api.githubcopilot.com/mcp/x/all'
+            } | Should -Throw '*GITHUB_TOKEN environment variable must be set*'
+        }
+        finally {
+            $env:GITHUB_TOKEN = $previousToken
+        }
+    }
+
+    It "does not add MCP configuration to an ordinary OpenAI request" {
+        InModuleScope PSAISuite {
+            Invoke-OpenAIProvider -ModelName 'gpt-5.6' -Messages @(@{ role = 'user'; content = 'Test prompt' }) | Out-Null
+        }
+
+        $global:capturedMcpRequest.PSObject.Properties.Name | Should -Not -Contain 'tools'
+    }
+
+    It "warns and continues for a non-OpenAI provider by default" {
+        $result = Invoke-ChatCompletion `
+            -Messages 'Test prompt' `
+            -Model 'anthropic:claude-sonnet' `
+            -MCPUrl 'https://example.com/mcp' `
+            -Raw `
+            -WarningVariable warningRecord
+
+        $warningRecord | Should -Match 'PSAI has not implemented MCP delegation for provider .anthropic.'
+        $result.McpRequested | Should -BeTrue
+        $result.McpApplied | Should -BeFalse
+        $result.McpProvider | Should -Be 'anthropic'
+        $result.McpPolicy | Should -Be 'Warn'
+        $result.McpWarning | Should -Match 'Continuing without MCP'
+    }
+
+    It "fails before calling a non-OpenAI provider with Require" {
+        $global:anthropicProviderCallCount = 0
+        Mock -ModuleName PSAISuite Invoke-AnthropicProvider {
+            $global:anthropicProviderCallCount++
+            'Anthropic response'
+        }
+
+        {
+            Invoke-ChatCompletion `
+                -Messages 'Test prompt' `
+                -Model 'anthropic:claude-sonnet' `
+                -MCPUrl 'https://example.com/mcp' `
+                -MCPPolicy Require
+        } | Should -Throw '*PSAI has not implemented MCP delegation for provider*'
+
+        $global:anthropicProviderCallCount | Should -Be 0
+    }
+
+    It "silently omits MCP for a non-OpenAI provider with Ignore" {
+        $global:anthropicProviderCallCount = 0
+        Mock -ModuleName PSAISuite Invoke-AnthropicProvider {
+            $global:anthropicProviderCallCount++
+            'Anthropic response'
+        }
+
+        $result = Invoke-ChatCompletion `
+            -Messages 'Test prompt' `
+            -Model 'anthropic:claude-sonnet' `
+            -MCPUrl 'https://example.com/mcp' `
+            -MCPPolicy Ignore `
+            -Raw `
+            -WarningVariable warningRecord
+
+        $warningRecord | Should -BeNullOrEmpty
+        $result.McpRequested | Should -BeTrue
+        $result.McpApplied | Should -BeFalse
+        $result.McpWarning | Should -BeNullOrEmpty
+        $global:anthropicProviderCallCount | Should -Be 1
+    }
+
+    It "does not retain MCP when the selected provider changes" {
+        $global:receivedOpenAIMcpUrl = $null
+        $global:receivedAnthropicMcpUrl = 'not-called'
+
+        Mock -ModuleName PSAISuite Invoke-OpenAIProvider {
+            param($MCPUrl)
+            $global:receivedOpenAIMcpUrl = $MCPUrl
+            [PSCustomObject]@{ Text = 'OpenAI response' }
+        }
+        Mock -ModuleName PSAISuite Invoke-AnthropicProvider {
+            param($MCPUrl)
+            $global:receivedAnthropicMcpUrl = $MCPUrl
+            'Anthropic response'
+        }
+
+        Invoke-ChatCompletion -Messages 'OpenAI prompt' -Model 'openai:gpt-5.6' -MCPUrl 'https://example.com/mcp' | Out-Null
+        $result = Invoke-ChatCompletion -Messages 'Anthropic prompt' -Model 'anthropic:claude-sonnet' -MCPUrl 'https://example.com/mcp' -MCPPolicy Ignore -Raw
+
+        $global:receivedOpenAIMcpUrl | Should -Be 'https://example.com/mcp'
+        $global:receivedAnthropicMcpUrl | Should -BeNullOrEmpty
+        $result.McpApplied | Should -BeFalse
+    }
+
+    It "redacts the MCP authorization token from errors" {
+        $secret = 'mcp-error-secret'
+        $secureToken = New-Object System.Security.SecureString
+        foreach ($character in $secret.ToCharArray()) {
+            $secureToken.AppendChar($character)
+        }
+        $global:mcpSecureToken = $secureToken
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            [PSCustomObject]@{
+                error = [PSCustomObject]@{ message = "The remote server rejected $secret" }
+            }
+        }
+
+        $output = & {
+            InModuleScope PSAISuite {
+                Invoke-OpenAIProvider `
+                    -ModelName 'gpt-5.6' `
+                    -Messages @(@{ role = 'user'; content = 'Test prompt' }) `
+                    -MCPUrl 'https://example.com/mcp' `
+                    -MCPAuthorizationToken $global:mcpSecureToken
+            }
+        } 2>&1 | Out-String
+
+        $output | Should -Not -Match $secret
+        $output | Should -Match '\[REDACTED\]'
     }
 }
 

@@ -43,6 +43,19 @@ A switch parameter that, if specified, measures and includes the elapsed time of
 .PARAMETER Raw
 A switch parameter that, if specified, returns the full response object (PSCustomObject) instead of just the response text.
 
+.PARAMETER MCPUrl
+The URL of a remote MCP server. Remote MCP delegation is currently supported
+only for the OpenAI provider.
+
+.PARAMETER MCPPolicy
+Controls what happens when MCP cannot be delegated. Warn (the default) emits
+a warning and continues without MCP, Require throws an error, and Ignore
+silently continues without MCP.
+
+.PARAMETER MCPAuthorizationToken
+An optional SecureString authorization token sent to the OpenAI remote MCP
+server. The token is never written to logs or error messages.
+
 .EXAMPLE
 $Message = New-ChatMessage -Prompt "Hello, world!"
 Invoke-ChatCompletion -Messages $Message -Model "openai:gpt-4o-mini"
@@ -85,6 +98,15 @@ Invoke-ChatCompletion -Messages "List files in current directory" -Tools "Get-Ch
 
 Uses the Get-ChildItem command as a tool for function calling.
 
+.EXAMPLE
+Invoke-ChatCompletion `
+    -Model "openai:gpt-5.6-luna" `
+    -MCPUrl "https://api.githubcopilot.com/mcp/x/all" `
+    -Prompt "Find the latest OAuth-related issue"
+
+Delegates remote MCP calls to OpenAI. OpenAI performs the remote MCP calls;
+PSAI Suite does not run a local MCP client.
+
 .NOTES
 The function dynamically constructs the provider-specific function name based on the provider specified in the Model 
 parameter. If the provider function does not exist, an error is thrown.
@@ -116,7 +138,14 @@ function Invoke-ChatCompletion {
         [string]$SpeedLevel,
 
         [switch]$IncludeElapsedTime,
-        [switch]$Raw
+        [switch]$Raw,
+
+        [string]$MCPUrl,
+
+        [ValidateSet('Warn', 'Require', 'Ignore')]
+        [string]$MCPPolicy = 'Warn',
+
+        [System.Security.SecureString]$MCPAuthorizationToken
     )
 
     Begin {
@@ -188,6 +217,56 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
+        $mcpRequested = -not [string]::IsNullOrWhiteSpace($MCPUrl)
+        $mcpApplied = $false
+        $mcpWarning = $null
+
+        if ($PSBoundParameters.ContainsKey('MCPAuthorizationToken') -and -not $mcpRequested) {
+            throw "MCPAuthorizationToken requires MCPUrl."
+        }
+
+        if ($mcpRequested) {
+            if ($provider -ne 'openai') {
+                switch ($MCPPolicy) {
+                    'Warn' {
+                        $mcpWarning = "MCP was requested, but PSAI has not implemented MCP delegation for provider '$provider'. Continuing without MCP."
+                        Write-Warning $mcpWarning
+                    }
+                    'Require' {
+                        throw "MCP was requested, but PSAI has not implemented MCP delegation for provider '$provider'."
+                    }
+                }
+            }
+            else {
+                try {
+                    $mcpUri = [System.Uri]$MCPUrl
+                    if (-not $mcpUri.IsAbsoluteUri -or $mcpUri.Scheme -notin @('http', 'https')) {
+                        throw 'MCPUrl must be an absolute HTTP or HTTPS URL.'
+                    }
+
+                    $mcpApplied = $true
+                }
+                catch {
+                    switch ($MCPPolicy) {
+                        'Warn' {
+                            $mcpWarning = 'MCP was requested, but the MCP URL could not be applied. Continuing without MCP.'
+                            Write-Warning $mcpWarning
+                        }
+                        'Require' {
+                            throw 'MCP was requested, but the MCP URL could not be applied.'
+                        }
+                    }
+                }
+            }
+
+            if ($mcpApplied -and
+                $mcpUri.Host -ieq 'api.githubcopilot.com' -and
+                -not $PSBoundParameters.ContainsKey('MCPAuthorizationToken') -and
+                [string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
+                throw 'GITHUB_TOKEN environment variable must be set when MCPUrl targets api.githubcopilot.com.'
+            }
+        }
+
         if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -ne 'openai') {
             throw "MaxIterations is currently supported only for the OpenAI provider."
         }
@@ -225,6 +304,13 @@ function Invoke-ChatCompletion {
             if ($SpeedLevel) {
                 $functionParams.SpeedLevel = $SpeedLevel
             }
+
+            if ($mcpApplied) {
+                $functionParams.MCPUrl = $MCPUrl
+                if ($PSBoundParameters.ContainsKey('MCPAuthorizationToken')) {
+                    $functionParams.MCPAuthorizationToken = $MCPAuthorizationToken
+                }
+            }
         }
 
         $providerResult = & $providerFunction @functionParams
@@ -258,6 +344,14 @@ function Invoke-ChatCompletion {
             $responseObject | Add-Member -MemberType NoteProperty -Name 'SpeedLevel' -Value $providerMetadata.RequestedSpeedLevel
             $responseObject | Add-Member -MemberType NoteProperty -Name 'ReasoningEffort' -Value $providerMetadata.ReasoningEffort
             $responseObject | Add-Member -MemberType NoteProperty -Name 'ServiceTier' -Value $providerMetadata.ServiceTier
+        }
+
+        if ($mcpRequested) {
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'McpRequested' -Value $true
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'McpApplied' -Value $mcpApplied
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'McpProvider' -Value $provider
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'McpPolicy' -Value $MCPPolicy
+            $responseObject | Add-Member -MemberType NoteProperty -Name 'McpWarning' -Value $mcpWarning
         }
 
         if ($IncludeElapsedTime) {

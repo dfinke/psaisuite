@@ -24,6 +24,12 @@
 .PARAMETER SpeedLevel
     The requested OpenAI processing speed level, such as "fast" or "default".
 
+.PARAMETER MCPUrl
+    The URL of a remote MCP server to expose through the OpenAI Responses API.
+
+.PARAMETER MCPAuthorizationToken
+    An optional SecureString authorization token for the remote MCP server.
+
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
     $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $Message
@@ -249,6 +255,22 @@ function ConvertTo-OpenAIInstructionText {
     return [string]$Content
 }
 
+function Protect-OpenAIErrorText {
+    param(
+        [AllowNull()]
+        [object]$Message,
+        [AllowNull()]
+        [string]$Secret
+    )
+
+    $text = if ($null -eq $Message) { '' } else { [string]$Message }
+    if (-not [string]::IsNullOrEmpty($Secret)) {
+        $text = $text.Replace($Secret, '[REDACTED]')
+    }
+
+    return $text
+}
+
 function Write-OpenAIActivity {
     param(
         [Parameter(Mandatory)]
@@ -331,7 +353,9 @@ function Invoke-OpenAIProvider {
         [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')]
         [string]$EffortLevel,
         [ValidateSet('auto', 'default', 'flex', 'fast', 'priority')]
-        [string]$SpeedLevel
+        [string]$SpeedLevel,
+        [string]$MCPUrl,
+        [System.Security.SecureString]$MCPAuthorizationToken
     )
     
     # Process tools: if strings, register them; then convert to provider schema
@@ -359,14 +383,42 @@ function Invoke-OpenAIProvider {
     $projectInstructionState = Get-OpenAIProjectInstructionState
     $messageInstructions = @(
         $Messages |
-            Where-Object { $_.role -eq 'system' -or $_.role -eq 'developer' } |
-            ForEach-Object { $_.content }
+        Where-Object { $_.role -eq 'system' -or $_.role -eq 'developer' } |
+        ForEach-Object { $_.content }
     )
     $inputMessages = @($Messages | Where-Object { $_.role -ne 'system' -and $_.role -ne 'developer' })
 
     $body = @{
         'model' = $ModelName
         'input' = $inputMessages
+    }
+
+    $authorizationToken = $null
+    $mcpTool = $null
+    if ($MCPUrl) {
+        $mcpUri = [System.Uri]$MCPUrl
+        $serverLabel = $mcpUri.Host -replace '[^A-Za-z0-9_-]', '-'
+        if ($serverLabel -notmatch '^[A-Za-z]') {
+            $serverLabel = "mcp-$serverLabel"
+        }
+        $mcpTool = [ordered]@{
+            type             = 'mcp'
+            server_label     = $serverLabel
+            server_url       = $MCPUrl
+            require_approval = 'never'
+        }
+
+        if ($MCPAuthorizationToken) {
+            $credential = New-Object System.Net.NetworkCredential('', $MCPAuthorizationToken)
+            $authorizationToken = $credential.Password
+            if ($authorizationToken) {
+                $mcpTool.authorization = $authorizationToken
+            }
+        }
+        elseif ($mcpUri.Host -ieq 'api.githubcopilot.com' -and -not [string]::IsNullOrEmpty($env:GITHUB_TOKEN)) {
+            $authorizationToken = $env:GITHUB_TOKEN
+            $mcpTool.authorization = $authorizationToken
+        }
     }
 
     $instructionText = Get-OpenAIInstructionText -Messages $messageInstructions -ProjectInstructionState $projectInstructionState
@@ -399,6 +451,15 @@ function Invoke-OpenAIProvider {
                 }
             })
     }
+
+    if ($mcpTool) {
+        if ($body.ContainsKey('tools')) {
+            $body['tools'] += $mcpTool
+        }
+        else {
+            $body['tools'] = @($mcpTool)
+        }
+    }
     
     $iteration = 0
     
@@ -419,8 +480,9 @@ function Invoke-OpenAIProvider {
             # Check if the response contains an error
             if ($response.error) {
                 Complete-OpenAIActivity
-                Write-Error $response.error.message
-                return "Error: $($response.error.message)"
+                $errorMessage = Protect-OpenAIErrorText -Message $response.error.message -Secret $authorizationToken
+                Write-Error $errorMessage
+                return "Error: $errorMessage"
             }
             
             # Check if output exists
@@ -497,14 +559,19 @@ function Invoke-OpenAIProvider {
             else {
                 # No function calls, extract text from message output items
                 # Responses API returns: output[].type='message', output[].content[].type='output_text'
-                $textOutput = ($response.output | Where-Object { $_.type -eq 'message' } | ForEach-Object {
+                $textOutput = if ($response.output_text) {
+                    [string]$response.output_text
+                }
+                else {
+                    ($response.output | Where-Object { $_.type -eq 'message' } | ForEach-Object {
                         if ($_.content -is [array]) {
                             ($_.content | Where-Object { $_.type -eq 'output_text' } | ForEach-Object { $_.text }) -join ''
                         }
                         elseif ($_.content) {
                             $_.content
                         }
-                }) -join ''
+                    }) -join ''
+                }
                 if (!$textOutput) {
                     Complete-OpenAIActivity
                     return "No text content in response."
@@ -512,21 +579,22 @@ function Invoke-OpenAIProvider {
                 Write-OpenAIActivity -Message "Response completed (round $round/$MaxIterations)" -Iteration $MaxIterations -MaxIterations $MaxIterations
                 Complete-OpenAIActivity
                 return [PSCustomObject]@{
-                    Text                   = $textOutput
-                    MaxIterations          = $MaxIterations
-                    RequestedEffortLevel   = $EffortLevel
-                    RequestedSpeedLevel    = $SpeedLevel
-                    ReasoningEffort        = if ($response.reasoning) { $response.reasoning.effort } else { $null }
-                    ServiceTier            = $response.service_tier
+                    Text                 = $textOutput
+                    MaxIterations        = $MaxIterations
+                    RequestedEffortLevel = $EffortLevel
+                    RequestedSpeedLevel  = $SpeedLevel
+                    ReasoningEffort      = if ($response.reasoning) { $response.reasoning.effort } else { $null }
+                    ServiceTier          = $response.service_tier
                 }
             }
         }
         catch {
             Complete-OpenAIActivity
             $statusCode = $_.Exception.Response.StatusCode.value__
-            $errorMessage = $_.ErrorDetails.Message
+            $errorMessage = Protect-OpenAIErrorText -Message $_.ErrorDetails.Message -Secret $authorizationToken
+            $exceptionMessage = Protect-OpenAIErrorText -Message $_.Exception.Message -Secret $authorizationToken
             Write-Error "OpenAI API Error (HTTP $statusCode): $errorMessage"
-            return "Error calling OpenAI API: $($_.Exception.Message)"
+            return "Error calling OpenAI API: $exceptionMessage"
         }
         
         $iteration++
