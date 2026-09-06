@@ -1,3 +1,8 @@
+# v0.8.8
+
+- Normalize model-generated optional tool arguments before invoking PowerShell commands.
+- Prevent invalid placeholder values from causing repeated tool calls, including `Get-Date` calls with zero-valued date components.
+
 # v0.8.7
 
 - Reissued the latest `main` implementation as a new release so the package includes Anthropic workflow controls.

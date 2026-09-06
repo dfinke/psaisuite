@@ -441,6 +441,29 @@ Describe "Invoke-OpenAIProvider tool feedback and project instructions" {
         Mock -ModuleName PSAISuite Write-Progress {}
     }
 
+    It "ignores invalid optional placeholder arguments from a tool call" {
+        $global:getDateArguments = @{
+            Date          = ''
+            Year          = 0
+            Month         = 0
+            Day           = 0
+            Hour          = 0
+            Minute        = 0
+            Second        = 0
+            Millisecond   = 0
+            DisplayHint   = 0
+            Format        = 'dddd, MMMM d, yyyy'
+            AsUTC         = $false
+        }
+
+        InModuleScope PSAISuite {
+            $global:getDateToolResult = Invoke-OpenAITool -FunctionName 'Get-Date' -FunctionArgs $global:getDateArguments
+        }
+
+        $global:getDateToolResult | Should -Not -Match 'Error executing Get-Date'
+        $global:getDateToolResult | Should -Match '\d{4}'
+    }
+
     It "returns non-terminating PowerShell tool errors to the model" {
         $global:openAIRequestCount = 0
         $global:capturedToolOutput = $null
