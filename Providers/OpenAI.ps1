@@ -284,13 +284,65 @@ function Invoke-OpenAITool {
     )
 
     try {
-        if (-not (Get-Command $FunctionName -ErrorAction SilentlyContinue)) {
+        $command = Get-Command $FunctionName -ErrorAction SilentlyContinue
+        if (-not $command) {
             return "Error: Function $FunctionName not found"
+        }
+
+        $normalizedArgs = @{}
+        foreach ($argumentName in @($FunctionArgs.Keys)) {
+            $argumentValue = $FunctionArgs[$argumentName]
+            $parameter = $command.Parameters[$argumentName]
+
+            if (-not $parameter) {
+                $normalizedArgs[$argumentName] = $argumentValue
+                continue
+            }
+
+            $isMandatory = @($parameter.Attributes | Where-Object {
+                    $_ -is [System.Management.Automation.ParameterAttribute] -and $_.Mandatory
+                }).Count -gt 0
+
+            if (-not $isMandatory -and $argumentValue -is [string] -and [string]::IsNullOrWhiteSpace($argumentValue)) {
+                Write-Verbose "[$((Get-Date).ToString('o'))] Ignoring empty optional argument '$argumentName' for $FunctionName."
+                continue
+            }
+
+            if (-not $isMandatory -and
+                $parameter.ParameterType -eq [System.Management.Automation.SwitchParameter] -and
+                $argumentValue -eq $false) {
+                Write-Verbose "[$((Get-Date).ToString('o'))] Ignoring disabled switch '$argumentName' for $FunctionName."
+                continue
+            }
+
+            $invalidRange = $false
+            if (-not $isMandatory) {
+                foreach ($range in @($parameter.Attributes | Where-Object {
+                            $_ -is [System.Management.Automation.ValidateRangeAttribute]
+                        })) {
+                    try {
+                        if ($argumentValue -lt $range.MinRange -or $argumentValue -gt $range.MaxRange) {
+                            $invalidRange = $true
+                            break
+                        }
+                    }
+                    catch {
+                        # Let PowerShell report non-numeric conversion errors normally.
+                    }
+                }
+            }
+
+            if ($invalidRange) {
+                Write-Verbose "[$((Get-Date).ToString('o'))] Ignoring out-of-range optional argument '$argumentName'='$argumentValue' for $FunctionName."
+                continue
+            }
+
+            $normalizedArgs[$argumentName] = $argumentValue
         }
 
         # Redirect the error stream so non-terminating PowerShell errors are sent
         # back to the model as tool output instead of only being shown to the user.
-        $toolOutput = @(& $FunctionName @FunctionArgs 2>&1)
+        $toolOutput = @(& $FunctionName @normalizedArgs 2>&1)
         $toolErrors = @($toolOutput | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] })
         $toolValues = @($toolOutput | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
 
