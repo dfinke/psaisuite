@@ -1,3 +1,10 @@
+# v0.8.9
+
+- Added `New-AgentHarness`, a configurable object with a `GetResponse` method that delegates to `Invoke-ChatCompletion`.
+- New harnesses default to `openai:gpt-5.6-luna`.
+- Harnesses support command names or tool schemas, editable instructions and model settings, and a tool-round limit. Each request starts a fresh conversation.
+- Added README examples and regression tests for request forwarding, configuration changes, independent harnesses, tool schemas, validation, and error propagation.
+
 # v0.8.8
 
 - Normalize model-generated optional tool arguments before invoking PowerShell commands.
