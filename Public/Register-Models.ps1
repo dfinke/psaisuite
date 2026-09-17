@@ -13,6 +13,7 @@ $script:ChatCompletionProviders = @{
     fireworksai = @{ Tooltip = 'AI Provider: Fireworks AI' }
     novita      = @{ Tooltip = 'AI Provider: Novita' }
     poe         = @{ Tooltip = 'AI Provider: Poe' }
+    vercel      = @{ Tooltip = 'AI Provider: Vercel AI Gateway' }
 }
 
 function ConvertTo-ModelCatalogItem {
@@ -192,6 +193,25 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 }
 
                 $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+            }
+            'vercel' {
+                $vercelGatewayKey = if ($env:AI_GATEWAY_API_KEY) {
+                    $env:AI_GATEWAY_API_KEY
+                }
+                else {
+                    $env:VERCEL_OIDC_TOKEN
+                }
+
+                $response = Invoke-RestMethod https://ai-gateway.vercel.sh/v1/models -Headers @{
+                    "Authorization" = "Bearer $vercelGatewayKey"
+                    "Content-Type"  = "application/json"
+                }
+
+                # Chat Completions accepts language models. The gateway catalog
+                # also includes embedding, image, video, and evaluation models.
+                $models = $response.data |
+                    Where-Object { $_.type -eq 'language' } |
+                    ConvertTo-ModelCatalogItem -Provider $providerKey
             }
 
             default {
