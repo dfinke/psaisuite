@@ -1,4 +1,4 @@
-# Unreleased
+# v0.8.10
 
 - Added the Vercel AI Gateway provider with OpenAI-compatible chat completions,
   tool calling, and bounded tool-calling rounds.

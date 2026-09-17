@@ -177,7 +177,7 @@ can run reliably even when a model supplies placeholder arguments.
 
 ### Build a custom agent harness
 
-Available in **v0.8.9**. For a walkthrough, see
+Available in **v0.8.10**. For a walkthrough, see
 [Build a Custom Agent Harness with PowerShell and PSAISuite](https://dfinke.github.io/powershell/ai/agents/automation/2026/09/12/build-a-custom-agent-harness-with-powershell-and-psaisuite.html).
 
 `New-AgentHarness` packages a model, tools, instructions, and a tool-round limit
