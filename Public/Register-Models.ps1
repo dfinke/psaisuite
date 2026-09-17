@@ -13,6 +13,7 @@ $script:ChatCompletionProviders = @{
     fireworksai = @{ Tooltip = 'AI Provider: Fireworks AI' }
     novita      = @{ Tooltip = 'AI Provider: Novita' }
     poe         = @{ Tooltip = 'AI Provider: Poe' }
+    vercel      = @{ Tooltip = 'AI Provider: Vercel AI Gateway' }
 }
 
 function ConvertTo-ModelCatalogItem {
@@ -188,6 +189,21 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 ## However, including the API key in the header is prudent to avoid future regression.
                 $response = Invoke-RestMethod https://api.poe.com/v1/models -Headers @{
                     "Authorization" = "Bearer $env:PoeKey"
+                    "Content-Type"  = "application/json"
+                }
+
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+            }
+            'vercel' {
+                $vercelGatewayKey = if ($env:AI_GATEWAY_API_KEY) {
+                    $env:AI_GATEWAY_API_KEY
+                }
+                else {
+                    $env:VERCEL_OIDC_TOKEN
+                }
+
+                $response = Invoke-RestMethod https://ai-gateway.vercel.sh/v1/models -Headers @{
+                    "Authorization" = "Bearer $vercelGatewayKey"
                     "Content-Type"  = "application/json"
                 }
 

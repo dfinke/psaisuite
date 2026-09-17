@@ -1,3 +1,9 @@
+# Unreleased
+
+- Added the Vercel AI Gateway provider with OpenAI-compatible chat completions,
+  tool calling, and bounded tool-calling rounds.
+- Added the Vercel provider guide and README setup/configuration examples.
+
 # v0.8.9
 
 - Added `New-AgentHarness`, a configurable object with a `GetResponse` method that delegates to `Invoke-ChatCompletion`.
