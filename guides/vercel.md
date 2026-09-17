@@ -42,6 +42,11 @@ The provider sends the request to
 text. Any model listed in Vercel's AI Gateway model catalog can be selected by
 using its `provider/model` name.
 
+For chat requests, choose a model whose catalog `type` is `language`. The
+catalog also contains evaluation, embedding, image, and video models; those
+use different APIs and cannot answer a Chat Completions request. The Vercel
+model tab completion filters its results to language models automatically.
+
 ## Tool calling
 
 Vercel AI Gateway accepts the same OpenAI function-tool schema used by the

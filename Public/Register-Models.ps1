@@ -207,7 +207,11 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     "Content-Type"  = "application/json"
                 }
 
-                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+                # Chat Completions accepts language models. The gateway catalog
+                # also includes embedding, image, video, and evaluation models.
+                $models = $response.data |
+                    Where-Object { $_.type -eq 'language' } |
+                    ConvertTo-ModelCatalogItem -Provider $providerKey
             }
 
             default {
