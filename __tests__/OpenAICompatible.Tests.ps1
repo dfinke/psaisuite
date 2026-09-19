@@ -80,6 +80,16 @@ Describe 'Invoke-OpenAICompatibleProvider' {
         $global:openAICompatibleRequest.Uri | Should -Be 'https://example.invalid/v1/chat/completions'
     }
 
+    It 'normalizes mixed-case chat completions paths without doubling segments' {
+        $env:OpenAICompatibleEndpoint = 'https://example.invalid/v1/Chat/Completions?tenant=demo'
+
+        InModuleScope PSAISuite {
+            Invoke-OpenAICompatibleProvider -ModelName 'custom-model' -Messages @(@{ role = 'user'; content = 'Hello' }) | Out-Null
+        }
+
+        $global:openAICompatibleRequest.Uri | Should -Be 'https://example.invalid/v1/chat/completions?tenant=demo'
+    }
+
     It 'preserves query strings when building the chat completions URI' {
         $env:OpenAICompatibleEndpoint = 'https://example.invalid/openai/v1?tenant=demo'
 
@@ -231,6 +241,15 @@ Describe 'OpenAI-compatible model completion' {
 
     It 'preserves query strings when building the models URI' {
         $env:OpenAICompatibleEndpoint = 'https://example.invalid/openai/v1?tenant=demo'
+
+        $completion = TabExpansion2 -inputScript 'Invoke-ChatCompletion -Model openaicompatible:c' -cursorColumn 47
+
+        $completion.CompletionMatches.CompletionText | Should -Contain 'openaicompatible:custom-model'
+        $global:openAICompatibleDiscoveryUri | Should -Be 'https://example.invalid/openai/v1/models?tenant=demo'
+    }
+
+    It 'does not double models paths when the configured endpoint already ends with models' {
+        $env:OpenAICompatibleEndpoint = 'https://example.invalid/openai/v1/models?tenant=demo'
 
         $completion = TabExpansion2 -inputScript 'Invoke-ChatCompletion -Model openaicompatible:c' -cursorColumn 47
 

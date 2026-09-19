@@ -21,5 +21,9 @@ function Invoke-OpenAIToolExecutor {
         return (& $resolvedCommand.Name @FunctionArgs | Out-String)
     }
 
-    return 'Error: Tool execution is unavailable because Invoke-OpenAITool is not loaded.'
+    if ($AllowedToolNames -contains $FunctionName) {
+        return "Error: Function $FunctionName not found"
+    }
+
+    return "Error: Function $FunctionName is not allowed"
 }

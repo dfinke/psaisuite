@@ -12,10 +12,10 @@ function Get-OpenAICompatibleUri {
     $builder = [System.UriBuilder]$Endpoint.Trim()
     $path = $builder.Path.TrimEnd('/')
 
-    if ($path.EndsWith('/chat/completions')) {
+    if ($path.EndsWith('/chat/completions', [System.StringComparison]::OrdinalIgnoreCase)) {
         $path = $path.Substring(0, $path.Length - '/chat/completions'.Length)
     }
-    elseif ($path.EndsWith('/models')) {
+    elseif ($path.EndsWith('/models', [System.StringComparison]::OrdinalIgnoreCase)) {
         $path = $path.Substring(0, $path.Length - '/models'.Length)
     }
 
