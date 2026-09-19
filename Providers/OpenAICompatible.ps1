@@ -87,7 +87,7 @@ function Invoke-OpenAICompatibleProvider {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($apiKey)) {
-        $headers.Authorization = "******"
+        $headers.Authorization = "Bearer $apiKey"
     }
 
     $body = [ordered]@{
@@ -126,19 +126,21 @@ function Invoke-OpenAICompatibleProvider {
             }
 
             if ($statusCode) {
-                Write-Error "OpenAI-compatible API Error (HTTP $statusCode): $errorMessage"
+                $message = "OpenAI-compatible API Error (HTTP $statusCode): $errorMessage"
             }
             else {
-                Write-Error "OpenAI-compatible API Error: $errorMessage"
+                $message = "OpenAI-compatible API Error: $errorMessage"
             }
 
-            return "Error calling OpenAI-compatible API: $($_.Exception.Message)"
+            Write-Error $message
+            throw $message
         }
 
         if ($response.error) {
             $errorMessage = if ($response.error.message) { $response.error.message } else { $response.error | Out-String }
-            Write-Error "OpenAI-compatible API Error: $errorMessage"
-            return "Error: $errorMessage"
+            $message = "OpenAI-compatible API Error: $errorMessage"
+            Write-Error $message
+            throw $message
         }
 
         if (-not $response.choices -or @($response.choices).Count -eq 0) {

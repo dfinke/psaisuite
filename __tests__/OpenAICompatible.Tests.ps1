@@ -64,7 +64,7 @@ Describe 'Invoke-OpenAICompatibleProvider' {
         $global:openAICompatibleResult | Should -Be 'OpenAI-compatible response'
         $global:openAICompatibleRequest.Uri | Should -Be 'https://example.invalid/v1/chat/completions'
         $global:openAICompatibleRequest.Method | Should -Be 'POST'
-        $global:openAICompatibleRequest.Headers.Authorization | Should -Be '******'
+        $global:openAICompatibleRequest.Headers.Authorization | Should -Be 'Bearer test-compatible-key'
         $global:openAICompatibleRequest.Body.model | Should -Be 'meta-llama/Llama-3.1-8B-Instruct'
         $global:openAICompatibleRequest.Body.messages[0].content | Should -Be 'Hello'
         $global:openAICompatibleRequest.Body.stream | Should -BeFalse
@@ -173,5 +173,52 @@ Describe 'OpenAI-compatible provider dispatch' {
         $result | Should -Be 'dispatch response'
         $global:openAICompatibleDispatch.ModelName | Should -Be 'custom-model'
         $global:openAICompatibleDispatch.MaxIterations | Should -Be 3
+    }
+}
+
+Describe 'OpenAI-compatible model completion' {
+    BeforeEach {
+        $global:openAICompatibleOriginalEndpoint = $env:OpenAICompatibleEndpoint
+        $global:openAICompatibleOriginalKey = $env:OpenAICompatibleKey
+        $env:OpenAICompatibleEndpoint = 'https://example.invalid/v1'
+        $env:OpenAICompatibleKey = 'test-compatible-key'
+        $global:openAICompatibleDiscoveryHeaders = $null
+
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            param($Uri, $Headers)
+            $global:openAICompatibleDiscoveryHeaders = $Headers
+
+            [PSCustomObject]@{
+                data = @(
+                    [PSCustomObject]@{
+                        id          = 'custom-model'
+                        description = 'A hosted test model'
+                    }
+                )
+            }
+        }
+    }
+
+    AfterEach {
+        if ($null -eq $global:openAICompatibleOriginalEndpoint) {
+            Remove-Item Env:OpenAICompatibleEndpoint -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:OpenAICompatibleEndpoint = $global:openAICompatibleOriginalEndpoint
+        }
+
+        if ($null -eq $global:openAICompatibleOriginalKey) {
+            Remove-Item Env:OpenAICompatibleKey -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:OpenAICompatibleKey = $global:openAICompatibleOriginalKey
+        }
+    }
+
+    It 'uses the configured bearer token for model discovery' {
+        $completion = TabExpansion2 -inputScript 'Invoke-ChatCompletion -Model openaicompatible:c' -cursorColumn 47
+
+        $global:openAICompatibleDiscoveryHeaders.Authorization | Should -Be 'Bearer test-compatible-key'
+        $completion.CompletionMatches.CompletionText | Should -Contain 'openaicompatible:custom-model'
     }
 }

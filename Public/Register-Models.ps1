@@ -239,7 +239,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 }
 
                 if (-not [string]::IsNullOrWhiteSpace($openAICompatibleKey)) {
-                    $headers.Authorization = "******"
+                    $headers.Authorization = "Bearer $openAICompatibleKey"
                 }
 
                 $response = Invoke-RestMethod $modelsUri -Headers $headers
