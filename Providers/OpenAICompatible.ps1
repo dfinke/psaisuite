@@ -52,13 +52,18 @@ function Invoke-OpenAICompatibleProvider {
         throw 'Please set the OpenAICompatibleEndpoint environment variable to the base OpenAI-compatible API URL.'
     }
 
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
             if ($tool -is [string]) {
+                $allowedToolNames += $tool
                 $toolDefinitions.Add((Register-Tool $tool))
             }
             else {
+                if ($tool.Name) {
+                    $allowedToolNames += [string]$tool.Name
+                }
                 $toolDefinitions.Add($tool)
             }
         }
@@ -69,6 +74,9 @@ function Invoke-OpenAICompatibleProvider {
     $apiEndpoint = $env:OpenAICompatibleEndpoint.Trim().TrimEnd('/')
     $chatCompletionsUri = if ($apiEndpoint -match '/chat/completions$') {
         $apiEndpoint
+    }
+    elseif ($apiEndpoint -match '/v1$') {
+        "$apiEndpoint/chat/completions"
     }
     else {
         "$apiEndpoint/chat/completions"
@@ -198,7 +206,7 @@ function Invoke-OpenAICompatibleProvider {
                 }
 
                 try {
-                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs
+                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
                 }
                 catch {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"

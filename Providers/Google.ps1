@@ -46,13 +46,18 @@ function Invoke-GoogleProvider {
     $apiKey = $env:GeminiKey
 
     # Process tools: if strings, register them; then convert to Google schema
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
             if ($tool -is [string]) {
+                $allowedToolNames += $tool
                 $toolDefinitions.Add((Register-Tool $tool))
             }
             else {
+                if ($tool.Name) {
+                    $allowedToolNames += [string]$tool.Name
+                }
                 $toolDefinitions.Add($tool)
             }
         }
@@ -147,7 +152,7 @@ function Invoke-GoogleProvider {
                     }
 
                     try {
-                        $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs
+                        $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
                     }
                     catch {
                         $result = "Error: $($_.Exception.Message)"

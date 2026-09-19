@@ -63,13 +63,18 @@ function Invoke-VercelProvider {
         return
     }
 
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
             if ($tool -is [string]) {
+                $allowedToolNames += $tool
                 $toolDefinitions.Add((Register-Tool $tool))
             }
             else {
+                if ($tool.Name) {
+                    $allowedToolNames += [string]$tool.Name
+                }
                 $toolDefinitions.Add($tool)
             }
         }
@@ -162,7 +167,7 @@ function Invoke-VercelProvider {
                 }
 
                 try {
-                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs
+                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
                 }
                 catch {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"
