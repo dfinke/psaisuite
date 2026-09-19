@@ -167,11 +167,11 @@ function Invoke-OpenAICompatibleProvider {
                 $assistantContent = [string]$assistantContent
             }
 
-            $body.messages += [ordered]@{
+            $body.messages += [hashtable]([ordered]@{
                 role       = if ($assistantMessage.role) { $assistantMessage.role } else { 'assistant' }
                 content    = $assistantContent
                 tool_calls = @($toolCalls)
-            }
+            })
 
             foreach ($call in $toolCalls) {
                 $functionName = $call.function.name
@@ -193,7 +193,7 @@ function Invoke-OpenAICompatibleProvider {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"
                 }
 
-                $body.messages += @{
+                $body.messages += [hashtable]@{
                     role         = 'tool'
                     tool_call_id = $call.id
                     content      = [string]$result
