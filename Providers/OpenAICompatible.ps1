@@ -214,6 +214,7 @@ function Invoke-OpenAICompatibleProvider {
 
                 $nextMessages.Add(@{
                     role         = 'tool'
+                    name         = $functionName
                     tool_call_id = $call.id
                     content      = [string]$result
                 })

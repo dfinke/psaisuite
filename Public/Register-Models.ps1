@@ -220,24 +220,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 }
 
                 try {
-                    $builder = [System.UriBuilder]$env:OpenAICompatibleEndpoint.Trim()
-                    $path = $builder.Path.TrimEnd('/')
-
-                    if ($path.EndsWith('/chat/completions', [System.StringComparison]::OrdinalIgnoreCase)) {
-                        $path = $path.Substring(0, $path.Length - '/chat/completions'.Length)
-                    }
-                    elseif ($path.EndsWith('/models', [System.StringComparison]::OrdinalIgnoreCase)) {
-                        $path = $path.Substring(0, $path.Length - '/models'.Length)
-                    }
-
-                    if ([string]::IsNullOrEmpty($path)) {
-                        $builder.Path = '/models'
-                    }
-                    else {
-                        $builder.Path = "$path/models"
-                    }
-
-                    $modelsUri = $builder.Uri.AbsoluteUri
+                    $modelsUri = Get-OpenAICompatibleUri -Endpoint $env:OpenAICompatibleEndpoint -ResourcePath 'models'
 
                     $openAICompatibleKey = if ($env:OpenAICompatibleKey) {
                         $env:OpenAICompatibleKey
