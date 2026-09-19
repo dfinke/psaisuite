@@ -243,7 +243,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                         $headers.Authorization = "Bearer $openAICompatibleKey"
                     }
 
-                    $response = Invoke-RestMethod $modelsUri -Headers $headers
+                    $response = Invoke-RestMethod -Uri $modelsUri -Headers $headers
                     $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
                 }
                 catch {

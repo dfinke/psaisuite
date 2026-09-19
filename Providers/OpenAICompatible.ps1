@@ -167,11 +167,17 @@ function Invoke-OpenAICompatibleProvider {
                 $assistantContent = [string]$assistantContent
             }
 
-            $body.messages += [hashtable]([ordered]@{
+            $assistantReplayMessage = [ordered]@{
                 role       = if ($assistantMessage.role) { $assistantMessage.role } else { 'assistant' }
                 content    = $assistantContent
                 tool_calls = @($toolCalls)
-            })
+            }
+
+            if ($assistantMessage.PSObject.Properties['name']) {
+                $assistantReplayMessage.name = $assistantMessage.name
+            }
+
+            $body.messages += [hashtable]$assistantReplayMessage
 
             foreach ($call in $toolCalls) {
                 $functionName = $call.function.name
