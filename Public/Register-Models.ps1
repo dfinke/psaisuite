@@ -14,6 +14,7 @@ $script:ChatCompletionProviders = @{
     novita      = @{ Tooltip = 'AI Provider: Novita' }
     poe         = @{ Tooltip = 'AI Provider: Poe' }
     vercel      = @{ Tooltip = 'AI Provider: Vercel AI Gateway' }
+    openaicompatible = @{ Tooltip = 'AI Provider: Custom OpenAI-compatible endpoint' }
 }
 
 function ConvertTo-ModelCatalogItem {
@@ -212,6 +213,37 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 $models = $response.data |
                     Where-Object { $_.type -eq 'language' } |
                     ConvertTo-ModelCatalogItem -Provider $providerKey
+            }
+            'openaicompatible' {
+                if ([string]::IsNullOrWhiteSpace($env:OpenAICompatibleEndpoint)) {
+                    return
+                }
+
+                $openAICompatibleEndpoint = $env:OpenAICompatibleEndpoint.Trim().TrimEnd('/')
+                $modelsUri = if ($openAICompatibleEndpoint -match '/chat/completions$') {
+                    $openAICompatibleEndpoint -replace '/chat/completions$', '/models'
+                }
+                else {
+                    "$openAICompatibleEndpoint/models"
+                }
+
+                $openAICompatibleKey = if ($env:OpenAICompatibleKey) {
+                    $env:OpenAICompatibleKey
+                }
+                else {
+                    $env:OPENAI_COMPATIBLE_API_KEY
+                }
+
+                $headers = @{
+                    'Content-Type' = 'application/json'
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($openAICompatibleKey)) {
+                    $headers.Authorization = "******"
+                }
+
+                $response = Invoke-RestMethod $modelsUri -Headers $headers
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
 
             default {

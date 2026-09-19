@@ -1,3 +1,13 @@
+# Unreleased
+
+- Reviewed the IREN integration request and documented the current supported
+  path: use the new `openaicompatible` provider for IREN-hosted vLLM, TGI, or
+  other OpenAI-compatible servers instead of introducing an undocumented `iren`
+  REST wrapper.
+- Added the `OpenAICompatible` provider with configurable endpoint and optional
+  authentication, plus model discovery from `/models` and bounded tool-calling
+  rounds.
+
 # v0.8.10
 
 - Added the Vercel AI Gateway provider with OpenAI-compatible chat completions,

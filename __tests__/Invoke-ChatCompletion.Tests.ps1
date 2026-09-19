@@ -241,7 +241,7 @@ Describe "Invoke-ChatCompletion" {
         It "Rejects max iterations for providers without support" {
             $message = New-ChatMessage -Prompt "Test"
             { Invoke-ChatCompletion -Messages $message -Model "google:gemini-2.0-flash" -MaxIterations 12 } |
-            Should -Throw "MaxIterations is currently supported only for the OpenAI, Anthropic, and Vercel providers."
+            Should -Throw "MaxIterations is currently supported only for the OpenAI, Anthropic, Vercel, and OpenAI-compatible providers."
         }
     }
 

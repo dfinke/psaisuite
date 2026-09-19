@@ -1,0 +1,211 @@
+<#
+.SYNOPSIS
+    Invokes a user-configured OpenAI-compatible chat completions endpoint.
+
+.DESCRIPTION
+    The Invoke-OpenAICompatibleProvider function sends requests to an
+    OpenAI-compatible endpoint configured through environment variables and
+    returns generated text. This is useful for self-hosted or infrastructure-
+    hosted model servers such as vLLM, TGI, or other OpenAI-compatible APIs.
+
+.PARAMETER ModelName
+    The model identifier exposed by the configured endpoint.
+
+.PARAMETER Messages
+    An array of hashtables containing the messages to send to the model.
+
+.PARAMETER Tools
+    An array of tool definitions for function calling. Strings are resolved as
+    PowerShell command names; hashtables can be supplied as provider-neutral or
+    OpenAI-compatible tool definitions.
+
+.PARAMETER MaxIterations
+    The maximum number of tool-calling rounds allowed before the request stops.
+
+.EXAMPLE
+    $env:OpenAICompatibleEndpoint = 'http://127.0.0.1:8000/v1'
+    Invoke-ChatCompletion -Model 'openaicompatible:meta-llama/Llama-3.1-8B-Instruct' `
+        -Messages 'Explain retrieval-augmented generation in one paragraph.'
+
+.NOTES
+    Set OpenAICompatibleEndpoint to the base OpenAI-compatible API path (for
+    example, https://host.example/v1) or directly to the chat completions URL.
+    If the endpoint requires authentication, set OpenAICompatibleKey or
+    OPENAI_COMPATIBLE_API_KEY. The key is optional for unauthenticated servers.
+#>
+function Invoke-OpenAICompatibleProvider {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ModelName,
+
+        [Parameter(Mandatory)]
+        [hashtable[]]$Messages,
+
+        [object[]]$Tools,
+
+        [ValidateRange(1, 100)]
+        [int]$MaxIterations = 5
+    )
+
+    if ([string]::IsNullOrWhiteSpace($env:OpenAICompatibleEndpoint)) {
+        Write-Error 'Please set the OpenAICompatibleEndpoint environment variable to the base OpenAI-compatible API URL.'
+        return
+    }
+
+    if ($Tools) {
+        $toolDefinitions = New-Object System.Collections.Generic.List[object]
+        foreach ($tool in $Tools) {
+            if ($tool -is [string]) {
+                $toolDefinitions.Add((Register-Tool $tool))
+            }
+            else {
+                $toolDefinitions.Add($tool)
+            }
+        }
+
+        $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
+    }
+
+    $apiEndpoint = $env:OpenAICompatibleEndpoint.Trim().TrimEnd('/')
+    $chatCompletionsUri = if ($apiEndpoint -match '/chat/completions$') {
+        $apiEndpoint
+    }
+    else {
+        "$apiEndpoint/chat/completions"
+    }
+
+    $apiKey = if ($env:OpenAICompatibleKey) {
+        $env:OpenAICompatibleKey
+    }
+    else {
+        $env:OPENAI_COMPATIBLE_API_KEY
+    }
+
+    $headers = @{
+        'Content-Type' = 'application/json'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($apiKey)) {
+        $headers.Authorization = "******"
+    }
+
+    $body = [ordered]@{
+        model    = $ModelName
+        messages = [hashtable[]]$Messages
+        stream   = $false
+    }
+
+    if ($Tools) {
+        $body.tools = @($Tools)
+        $body.tool_choice = 'auto'
+    }
+
+    $iteration = 0
+
+    while ($iteration -lt $MaxIterations) {
+        $params = @{
+            Uri     = $chatCompletionsUri
+            Method  = 'POST'
+            Headers = $headers
+            Body    = $body | ConvertTo-Json -Depth 20
+        }
+
+        try {
+            $response = Invoke-RestMethod @params
+        }
+        catch {
+            $statusCode = $null
+            if ($_.Exception.Response) {
+                $statusCode = $_.Exception.Response.StatusCode.value__
+            }
+
+            $errorMessage = $_.ErrorDetails.Message
+            if ([string]::IsNullOrWhiteSpace($errorMessage)) {
+                $errorMessage = $_.Exception.Message
+            }
+
+            if ($statusCode) {
+                Write-Error "OpenAI-compatible API Error (HTTP $statusCode): $errorMessage"
+            }
+            else {
+                Write-Error "OpenAI-compatible API Error: $errorMessage"
+            }
+
+            return "Error calling OpenAI-compatible API: $($_.Exception.Message)"
+        }
+
+        if ($response.error) {
+            $errorMessage = if ($response.error.message) { $response.error.message } else { $response.error | Out-String }
+            Write-Error "OpenAI-compatible API Error: $errorMessage"
+            return "Error: $errorMessage"
+        }
+
+        if (-not $response.choices -or @($response.choices).Count -eq 0) {
+            return 'No choices in response from OpenAI-compatible API.'
+        }
+
+        $assistantMessage = $response.choices[0].message
+        $toolCalls = @()
+        if ($assistantMessage.tool_calls) {
+            $toolCalls = @($assistantMessage.tool_calls)
+        }
+
+        if ($toolCalls.Count -gt 0) {
+            $body.messages += $assistantMessage
+
+            foreach ($call in $toolCalls) {
+                $functionName = $call.function.name
+                $functionArgs = @{}
+
+                if ($call.function.arguments) {
+                    try {
+                        $functionArgs = $call.function.arguments | ConvertFrom-Json -AsHashtable
+                    }
+                    catch {
+                        $functionArgs = @{}
+                    }
+                }
+
+                try {
+                    if (Get-Command Invoke-OpenAITool -ErrorAction SilentlyContinue) {
+                        $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
+                    }
+                    elseif (Get-Command $functionName -ErrorAction SilentlyContinue) {
+                        $result = & $functionName @functionArgs | Out-String
+                    }
+                    else {
+                        $result = "Error: Function $functionName not found"
+                    }
+                }
+                catch {
+                    $result = "Error executing $functionName`: $($_.Exception.Message)"
+                }
+
+                $body.messages += @{
+                    role         = 'tool'
+                    tool_call_id = $call.id
+                    content      = [string]$result
+                }
+            }
+
+            $iteration++
+            continue
+        }
+
+        $content = $assistantMessage.content
+        if ($content -is [array]) {
+            $content = ($content | ForEach-Object {
+                    if ($_.text) { $_.text } else { [string]$_ }
+                }) -join ''
+        }
+
+        if ([string]::IsNullOrWhiteSpace([string]$content)) {
+            return 'No text content in response from OpenAI-compatible API.'
+        }
+
+        return [string]$content
+    }
+
+    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
+}
