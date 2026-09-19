@@ -173,8 +173,11 @@ function Invoke-OpenAICompatibleProvider {
 
             $assistantReplayMessage = @{
                 role       = if ($assistantMessage.role) { $assistantMessage.role } else { 'assistant' }
-                content    = $assistantContent
                 tool_calls = @($toolCalls)
+            }
+
+            if ($null -ne $assistantContent) {
+                $assistantReplayMessage.content = $assistantContent
             }
 
             if ($assistantMessage.PSObject.Properties['name']) {
