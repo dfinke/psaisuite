@@ -25,6 +25,24 @@ function Get-ToolInvocationNames {
             elseif ($tool.Contains('Name')) {
                 $name = $tool['Name']
             }
+            elseif ($tool.Contains('functionDeclarations')) {
+                foreach ($declaration in @($tool['functionDeclarations'])) {
+                    $declarationName = if ($declaration -is [System.Collections.IDictionary]) { $declaration['name'] } else { $declaration.name }
+                    if (-not [string]::IsNullOrWhiteSpace([string]$declarationName) -and -not $names.Contains([string]$declarationName)) {
+                        $names.Add([string]$declarationName)
+                    }
+                }
+                continue
+            }
+            elseif ($tool.Contains('function_declarations')) {
+                foreach ($declaration in @($tool['function_declarations'])) {
+                    $declarationName = if ($declaration -is [System.Collections.IDictionary]) { $declaration['name'] } else { $declaration.name }
+                    if (-not [string]::IsNullOrWhiteSpace([string]$declarationName) -and -not $names.Contains([string]$declarationName)) {
+                        $names.Add([string]$declarationName)
+                    }
+                }
+                continue
+            }
         }
         else {
             if ($tool.PSObject.Properties['function']) {
@@ -35,6 +53,24 @@ function Get-ToolInvocationNames {
             }
             elseif ($tool.PSObject.Properties['Name']) {
                 $name = $tool.Name
+            }
+            elseif ($tool.PSObject.Properties['functionDeclarations']) {
+                foreach ($declaration in @($tool.functionDeclarations)) {
+                    $declarationName = $declaration.name
+                    if (-not [string]::IsNullOrWhiteSpace([string]$declarationName) -and -not $names.Contains([string]$declarationName)) {
+                        $names.Add([string]$declarationName)
+                    }
+                }
+                continue
+            }
+            elseif ($tool.PSObject.Properties['function_declarations']) {
+                foreach ($declaration in @($tool.function_declarations)) {
+                    $declarationName = $declaration.name
+                    if (-not [string]::IsNullOrWhiteSpace([string]$declarationName) -and -not $names.Contains([string]$declarationName)) {
+                        $names.Add([string]$declarationName)
+                    }
+                }
+                continue
             }
         }
 
