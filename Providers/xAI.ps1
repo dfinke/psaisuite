@@ -29,7 +29,9 @@ function Invoke-XAIProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [object[]]$Tools
+        [object[]]$Tools,
+        [ValidateRange(1, 100)]
+        [int]$MaxIterations = 5
     )
 
     # Process tools: if strings, register them; then convert to provider schema
@@ -62,10 +64,9 @@ function Invoke-XAIProvider {
 
     $Uri = "https://api.x.ai/v1/chat/completions"
     
-    $maxIterations = 5
     $iteration = 0
 
-    while ($iteration -lt $maxIterations) {
+    while ($iteration -lt $MaxIterations) {
         $params = @{
             Uri     = $Uri
             Method  = 'POST'
@@ -139,5 +140,5 @@ function Invoke-XAIProvider {
         $iteration++
     }
 
-    return "Maximum iterations reached without completing the response."
+    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
 }

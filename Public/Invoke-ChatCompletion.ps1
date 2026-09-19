@@ -188,8 +188,8 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
-        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -notin @('openai', 'anthropic', 'vercel', 'openaicompatible')) {
-            throw "MaxIterations is currently supported only for the OpenAI, Anthropic, Vercel, and OpenAI-compatible providers."
+        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -notin @('openai', 'anthropic', 'vercel', 'openaicompatible', 'xai', 'google')) {
+            throw "MaxIterations is currently supported only for the OpenAI, Anthropic, Vercel, OpenAI-compatible, xAI, and Google providers."
         }
 
         if ($EffortLevel -and $provider -eq 'anthropic' -and @('low', 'medium', 'high', 'xhigh', 'max') -notcontains $EffortLevel) {
@@ -219,7 +219,7 @@ function Invoke-ChatCompletion {
             $functionParams.Tools = $Tools
         }
 
-        if ($provider -in @('openai', 'anthropic', 'vercel', 'openaicompatible')) {
+        if ($provider -in @('openai', 'anthropic', 'vercel', 'openaicompatible', 'xai', 'google')) {
             $functionParams.MaxIterations = $MaxIterations
 
             if ($EffortLevel -and $provider -in @('openai', 'anthropic')) {

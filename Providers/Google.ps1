@@ -34,7 +34,9 @@ function Invoke-GoogleProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [object[]]$Tools
+        [object[]]$Tools,
+        [ValidateRange(1, 100)]
+        [int]$MaxIterations = 5
     )
     
     if (-not $env:GeminiKey) {
@@ -104,10 +106,9 @@ function Invoke-GoogleProvider {
 
     $Uri = "https://generativelanguage.googleapis.com/v1beta/models/$($ModelName):generateContent?key=$apiKey"
     
-    $maxIterations = 5
     $iteration = 0
 
-    while ($iteration -lt $maxIterations) {
+    while ($iteration -lt $MaxIterations) {
         $params = @{
             Uri     = $Uri
             Method  = 'POST'
@@ -199,5 +200,5 @@ function Invoke-GoogleProvider {
         $iteration++
     }
 
-    return "Maximum iterations reached without completing the response."
+    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
 }

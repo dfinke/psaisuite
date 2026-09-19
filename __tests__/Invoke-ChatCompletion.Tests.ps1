@@ -162,6 +162,32 @@ Describe "Invoke-ChatCompletion" {
 
             $global:capturedMaxIterations | Should -Be 12
         }
+
+        It "Passes xAI max iterations to the provider" {
+            $global:capturedMaxIterations = $null
+            Mock -ModuleName PSAISuite Invoke-XAIProvider {
+                param($ModelName, $Messages, $MaxIterations)
+                $global:capturedMaxIterations = $MaxIterations
+                return "xAI response"
+            }
+
+            Invoke-ChatCompletion -Messages "Test prompt" -Model "xai:grok-4-fast" -MaxIterations 7 | Out-Null
+
+            $global:capturedMaxIterations | Should -Be 7
+        }
+
+        It "Passes Google max iterations to the provider" {
+            $global:capturedMaxIterations = $null
+            Mock -ModuleName PSAISuite Invoke-GoogleProvider {
+                param($ModelName, $Messages, $MaxIterations)
+                $global:capturedMaxIterations = $MaxIterations
+                return "Google response"
+            }
+
+            Invoke-ChatCompletion -Messages "Test prompt" -Model "google:gemini-2.0-flash" -MaxIterations 7 | Out-Null
+
+            $global:capturedMaxIterations | Should -Be 7
+        }
     }
 
     Context "String input handling" {
@@ -240,8 +266,8 @@ Describe "Invoke-ChatCompletion" {
 
         It "Rejects max iterations for providers without support" {
             $message = New-ChatMessage -Prompt "Test"
-            { Invoke-ChatCompletion -Messages $message -Model "google:gemini-2.0-flash" -MaxIterations 12 } |
-            Should -Throw "MaxIterations is currently supported only for the OpenAI, Anthropic, Vercel, and OpenAI-compatible providers."
+            { Invoke-ChatCompletion -Messages $message -Model "groq:llama-3.3-70b-versatile" -MaxIterations 12 } |
+            Should -Throw "MaxIterations is currently supported only for the OpenAI, Anthropic, Vercel, OpenAI-compatible, xAI, and Google providers."
         }
     }
 

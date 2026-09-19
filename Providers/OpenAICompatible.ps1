@@ -154,7 +154,11 @@ function Invoke-OpenAICompatibleProvider {
         }
 
         if ($toolCalls.Count -gt 0) {
-            $body.messages += $assistantMessage
+            $body.messages += [ordered]@{
+                role       = if ($assistantMessage.role) { $assistantMessage.role } else { 'assistant' }
+                content    = $assistantMessage.content
+                tool_calls = @($toolCalls)
+            }
 
             foreach ($call in $toolCalls) {
                 $functionName = $call.function.name
