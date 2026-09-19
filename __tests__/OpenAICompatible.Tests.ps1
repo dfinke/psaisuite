@@ -100,6 +100,16 @@ Describe 'Invoke-OpenAICompatibleProvider' {
         $global:openAICompatibleRequest.Uri | Should -Be 'https://example.invalid/openai/v1/chat/completions?tenant=demo'
     }
 
+    It 'builds a single-slash chat completions URI for root endpoints' {
+        $env:OpenAICompatibleEndpoint = 'https://example.invalid?tenant=demo'
+
+        InModuleScope PSAISuite {
+            Invoke-OpenAICompatibleProvider -ModelName 'custom-model' -Messages @(@{ role = 'user'; content = 'Hello' }) | Out-Null
+        }
+
+        $global:openAICompatibleRequest.Uri | Should -Be 'https://example.invalid/chat/completions?tenant=demo'
+    }
+
     It 'omits the authorization header when no key is configured' {
         Remove-Item Env:OpenAICompatibleKey -ErrorAction SilentlyContinue
 

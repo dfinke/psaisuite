@@ -19,6 +19,11 @@ function Get-OpenAICompatibleUri {
         $path = $path.Substring(0, $path.Length - '/models'.Length)
     }
 
-    $builder.Path = "$path/$ResourcePath"
+    if ([string]::IsNullOrEmpty($path)) {
+        $builder.Path = "/$ResourcePath"
+    }
+    else {
+        $builder.Path = "$path/$ResourcePath"
+    }
     return $builder.Uri.AbsoluteUri
 }
