@@ -49,8 +49,7 @@ function Invoke-OpenAICompatibleProvider {
     )
 
     if ([string]::IsNullOrWhiteSpace($env:OpenAICompatibleEndpoint)) {
-        Write-Error 'Please set the OpenAICompatibleEndpoint environment variable to the base OpenAI-compatible API URL.'
-        return
+        throw 'Please set the OpenAICompatibleEndpoint environment variable to the base OpenAI-compatible API URL.'
     }
 
     if ($Tools) {
@@ -174,12 +173,7 @@ function Invoke-OpenAICompatibleProvider {
                 }
 
                 try {
-                    if (Get-Command Invoke-OpenAITool -ErrorAction SilentlyContinue) {
-                        $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
-                    }
-                    else {
-                        $result = 'Error: OpenAI tool execution is unavailable because Invoke-OpenAITool is not loaded.'
-                    }
+                    $result = Invoke-RegisteredToolCall -FunctionName $functionName -FunctionArgs $functionArgs
                 }
                 catch {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"

@@ -142,17 +142,12 @@ Describe 'Invoke-OpenAICompatibleProvider' {
 
     It 'reports a clear error when no endpoint is configured' {
         Remove-Item Env:OpenAICompatibleEndpoint -ErrorAction SilentlyContinue
-        $global:openAICompatibleError = $null
-        Mock -ModuleName PSAISuite Write-Error {
-            param($Message)
-            $global:openAICompatibleError = $Message
-        }
 
         InModuleScope PSAISuite {
-            Invoke-OpenAICompatibleProvider -ModelName 'custom-model' -Messages @(@{ role = 'user'; content = 'Hello' }) | Out-Null
+            {
+                Invoke-OpenAICompatibleProvider -ModelName 'custom-model' -Messages @(@{ role = 'user'; content = 'Hello' }) | Out-Null
+            } | Should -Throw '*OpenAICompatibleEndpoint*'
         }
-
-        $global:openAICompatibleError | Should -Match 'OpenAICompatibleEndpoint'
     }
 }
 
@@ -220,5 +215,13 @@ Describe 'OpenAI-compatible model completion' {
 
         $global:openAICompatibleDiscoveryHeaders.Authorization | Should -Be 'Bearer test-compatible-key'
         $completion.CompletionMatches.CompletionText | Should -Contain 'openaicompatible:custom-model'
+    }
+
+    It 'returns no completions when model discovery fails' {
+        Mock -ModuleName PSAISuite Invoke-RestMethod { throw 'discovery failed' }
+
+        $completion = TabExpansion2 -inputScript 'Invoke-ChatCompletion -Model openaicompatible:c' -cursorColumn 47
+
+        @($completion.CompletionMatches).Count | Should -Be 0
     }
 }

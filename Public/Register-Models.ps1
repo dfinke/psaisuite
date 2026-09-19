@@ -219,31 +219,36 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     return
                 }
 
-                $openAICompatibleEndpoint = $env:OpenAICompatibleEndpoint.Trim().TrimEnd('/')
-                $modelsUri = if ($openAICompatibleEndpoint -match '/chat/completions$') {
-                    $openAICompatibleEndpoint -replace '/chat/completions$', '/models'
-                }
-                else {
-                    "$openAICompatibleEndpoint/models"
-                }
+                try {
+                    $openAICompatibleEndpoint = $env:OpenAICompatibleEndpoint.Trim().TrimEnd('/')
+                    $modelsUri = if ($openAICompatibleEndpoint -match '/chat/completions$') {
+                        $openAICompatibleEndpoint -replace '/chat/completions$', '/models'
+                    }
+                    else {
+                        "$openAICompatibleEndpoint/models"
+                    }
 
-                $openAICompatibleKey = if ($env:OpenAICompatibleKey) {
-                    $env:OpenAICompatibleKey
-                }
-                else {
-                    $env:OPENAI_COMPATIBLE_API_KEY
-                }
+                    $openAICompatibleKey = if ($env:OpenAICompatibleKey) {
+                        $env:OpenAICompatibleKey
+                    }
+                    else {
+                        $env:OPENAI_COMPATIBLE_API_KEY
+                    }
 
-                $headers = @{
-                    'Content-Type' = 'application/json'
-                }
+                    $headers = @{
+                        'Content-Type' = 'application/json'
+                    }
 
-                if (-not [string]::IsNullOrWhiteSpace($openAICompatibleKey)) {
-                    $headers.Authorization = "Bearer $openAICompatibleKey"
-                }
+                    if (-not [string]::IsNullOrWhiteSpace($openAICompatibleKey)) {
+                        $headers.Authorization = "Bearer $openAICompatibleKey"
+                    }
 
-                $response = Invoke-RestMethod $modelsUri -Headers $headers
-                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+                    $response = Invoke-RestMethod $modelsUri -Headers $headers
+                    $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+                }
+                catch {
+                    return
+                }
             }
 
             default {
