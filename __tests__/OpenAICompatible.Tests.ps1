@@ -170,6 +170,54 @@ Describe 'Invoke-OpenAICompatibleProvider' {
         ($global:openAICompatibleSecondRequest.messages | Where-Object { $_.role -eq 'tool' }).tool_call_id | Should -Be 'call-1'
     }
 
+    It 'returns a tool error when the model sends invalid JSON arguments' {
+        $global:openAICompatibleRequestCount = 0
+        $global:openAICompatibleSecondRequest = $null
+        Mock -ModuleName PSAISuite Invoke-RestMethod {
+            param($Uri, $Method, $Headers, $Body)
+            [void]($global:openAICompatibleRequestCount++)
+            $request = $Body | ConvertFrom-Json
+
+            if ($global:openAICompatibleRequestCount -eq 1) {
+                return [PSCustomObject]@{
+                    choices = @(
+                        [PSCustomObject]@{
+                            message = [PSCustomObject]@{
+                                role       = 'assistant'
+                                content    = $null
+                                tool_calls = @(
+                                    [PSCustomObject]@{
+                                        id       = 'call-bad-json'
+                                        function = [PSCustomObject]@{
+                                            name      = 'Get-Date'
+                                            arguments = '{'
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+
+            [void]($global:openAICompatibleSecondRequest = $request)
+            [PSCustomObject]@{
+                choices = @(
+                    [PSCustomObject]@{
+                        message = [PSCustomObject]@{ content = 'Recovered' }
+                    }
+                )
+            }
+        }
+
+        InModuleScope PSAISuite {
+            $global:openAICompatibleResult = Invoke-OpenAICompatibleProvider -ModelName 'custom-model' -Messages @(@{ role = 'user'; content = 'Use a tool' }) -MaxIterations 2
+        }
+
+        $global:openAICompatibleResult | Should -Be 'Recovered'
+        ($global:openAICompatibleSecondRequest.messages | Where-Object { $_.role -eq 'tool' }).content | Should -Match 'Error parsing tool arguments'
+    }
+
     It 'reports a clear error when no endpoint is configured' {
         Remove-Item Env:OpenAICompatibleEndpoint -ErrorAction SilentlyContinue
 

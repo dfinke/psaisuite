@@ -27,7 +27,6 @@ function Invoke-OpenAIToolExecutor {
         $parameter = $resolvedCommand.Parameters[$argumentName]
 
         if (-not $parameter) {
-            $normalizedArgs[$argumentName] = $argumentValue
             continue
         }
 

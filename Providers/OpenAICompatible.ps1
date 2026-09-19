@@ -189,18 +189,24 @@ function Invoke-OpenAICompatibleProvider {
             foreach ($call in $toolCalls) {
                 $functionName = $call.function.name
                 $functionArgs = @{}
+                $argumentParseError = $null
 
                 if ($call.function.arguments) {
                     try {
                         $functionArgs = $call.function.arguments | ConvertFrom-Json -AsHashtable
                     }
                     catch {
-                        $functionArgs = @{}
+                        $argumentParseError = "Error parsing tool arguments for $functionName`: $($_.Exception.Message)"
                     }
                 }
 
                 try {
-                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                    if ($argumentParseError) {
+                        $result = $argumentParseError
+                    }
+                    else {
+                        $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                    }
                 }
                 catch {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"
