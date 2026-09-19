@@ -162,15 +162,7 @@ function Invoke-VercelProvider {
                 }
 
                 try {
-                    if (Get-Command Invoke-OpenAITool -ErrorAction SilentlyContinue) {
-                        $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
-                    }
-                    elseif (Get-Command $functionName -ErrorAction SilentlyContinue) {
-                        $result = & $functionName @functionArgs | Out-String
-                    }
-                    else {
-                        $result = "Error: Function $functionName not found"
-                    }
+                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs
                 }
                 catch {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"

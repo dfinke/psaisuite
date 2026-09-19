@@ -147,12 +147,7 @@ function Invoke-GoogleProvider {
                     }
 
                     try {
-                        if (Get-Command $functionName -ErrorAction SilentlyContinue) {
-                            $result = & $functionName @functionArgs
-                        }
-                        else {
-                            $result = "Error: Function $functionName not found"
-                        }
+                        $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs
                     }
                     catch {
                         $result = "Error: $($_.Exception.Message)"
