@@ -34,7 +34,9 @@ function Invoke-GoogleProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [object[]]$Tools
+        [object[]]$Tools,
+        [ValidateRange(1, 100)]
+        [int]$MaxIterations = 5
     )
     
     if (-not $env:GeminiKey) {
@@ -44,6 +46,7 @@ function Invoke-GoogleProvider {
     $apiKey = $env:GeminiKey
 
     # Process tools: if strings, register them; then convert to Google schema
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
@@ -55,6 +58,7 @@ function Invoke-GoogleProvider {
             }
         }
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider google
+        $allowedToolNames = @(Get-ToolInvocationNames -Tools $Tools)
     }
     
     # Build contents array and extract system instruction
@@ -104,10 +108,9 @@ function Invoke-GoogleProvider {
 
     $Uri = "https://generativelanguage.googleapis.com/v1beta/models/$($ModelName):generateContent?key=$apiKey"
     
-    $maxIterations = 5
     $iteration = 0
 
-    while ($iteration -lt $maxIterations) {
+    while ($iteration -lt $MaxIterations) {
         $params = @{
             Uri     = $Uri
             Method  = 'POST'
@@ -146,11 +149,11 @@ function Invoke-GoogleProvider {
                     }
 
                     try {
-                        if (Get-Command $functionName -ErrorAction SilentlyContinue) {
-                            $result = & $functionName @functionArgs
+                        if ($allowedToolNames.Count -eq 0) {
+                            $result = "Error: Tool $functionName was requested but no tools were supplied for this request."
                         }
                         else {
-                            $result = "Error: Function $functionName not found"
+                            $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
                         }
                     }
                     catch {
@@ -199,5 +202,5 @@ function Invoke-GoogleProvider {
         $iteration++
     }
 
-    return "Maximum iterations reached without completing the response."
+    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
 }

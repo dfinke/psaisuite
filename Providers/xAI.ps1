@@ -29,10 +29,13 @@ function Invoke-XAIProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [object[]]$Tools
+        [object[]]$Tools,
+        [ValidateRange(1, 100)]
+        [int]$MaxIterations = 5
     )
 
     # Process tools: if strings, register them; then convert to provider schema
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
@@ -44,6 +47,7 @@ function Invoke-XAIProvider {
             }
         }
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
+        $allowedToolNames = @(Get-ToolInvocationNames -Tools $Tools)
     }
     
     $headers = @{
@@ -62,10 +66,9 @@ function Invoke-XAIProvider {
 
     $Uri = "https://api.x.ai/v1/chat/completions"
     
-    $maxIterations = 5
     $iteration = 0
 
-    while ($iteration -lt $maxIterations) {
+    while ($iteration -lt $MaxIterations) {
         $params = @{
             Uri     = $Uri
             Method  = 'POST'
@@ -98,11 +101,11 @@ function Invoke-XAIProvider {
                     }
 
                     try {
-                        if (Get-Command $functionName -ErrorAction SilentlyContinue) {
-                            $result = & $functionName @functionArgs
+                        if ($allowedToolNames.Count -eq 0) {
+                            $result = "Error: Tool $functionName was requested but no tools were supplied for this request."
                         }
                         else {
-                            $result = "Error: Function $functionName not found"
+                            $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
                         }
                     }
                     catch {
@@ -139,5 +142,5 @@ function Invoke-XAIProvider {
         $iteration++
     }
 
-    return "Maximum iterations reached without completing the response."
+    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
 }

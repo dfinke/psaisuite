@@ -1,16 +1,15 @@
 <#
 .SYNOPSIS
-    Invokes Vercel AI Gateway using its OpenAI-compatible Chat Completions API.
+    Invokes a user-configured OpenAI-compatible chat completions endpoint.
 
 .DESCRIPTION
-    The Invoke-VercelProvider function sends requests to Vercel AI Gateway and
-    returns generated text. AI Gateway can route a request to models from
-    multiple providers by using a model name such as
-    'anthropic/claude-sonnet-4.6'.
+    The Invoke-OpenAICompatibleProvider function sends requests to an
+    OpenAI-compatible endpoint configured through environment variables and
+    returns generated text. This is useful for self-hosted or infrastructure-
+    hosted model servers such as vLLM, TGI, or other OpenAI-compatible APIs.
 
 .PARAMETER ModelName
-    The AI Gateway model name. Use the provider/model format documented by
-    Vercel, for example 'openai/gpt-5.6' or 'anthropic/claude-sonnet-4.6'.
+    The model identifier exposed by the configured endpoint.
 
 .PARAMETER Messages
     An array of hashtables containing the messages to send to the model.
@@ -24,19 +23,17 @@
     The maximum number of tool-calling rounds allowed before the request stops.
 
 .EXAMPLE
-    $message = New-ChatMessage -Prompt 'Explain edge computing in one paragraph.'
-    Invoke-VercelProvider -ModelName 'openai/gpt-5.6' -Messages $message
-
-.EXAMPLE
-    Invoke-ChatCompletion -Model 'vercel:anthropic/claude-sonnet-4.6' `
-        -Messages 'List the files in the current directory.' `
-        -Tools Get-ChildItem
+    $env:OpenAICompatibleEndpoint = 'http://127.0.0.1:8000/v1'
+    Invoke-ChatCompletion -Model 'openaicompatible:meta-llama/Llama-3.1-8B-Instruct' `
+        -Messages 'Explain retrieval-augmented generation in one paragraph.'
 
 .NOTES
-    Requires AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN to be set. API reference:
-    https://vercel.com/docs/ai-gateway/openai-compat/rest-api
+    Set OpenAICompatibleEndpoint to the base OpenAI-compatible API path (for
+    example, https://host.example/v1) or directly to the chat completions URL.
+    If the endpoint requires authentication, set OpenAICompatibleKey or
+    OPENAI_COMPATIBLE_API_KEY. The key is optional for unauthenticated servers.
 #>
-function Invoke-VercelProvider {
+function Invoke-OpenAICompatibleProvider {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -51,16 +48,8 @@ function Invoke-VercelProvider {
         [int]$MaxIterations = 5
     )
 
-    $apiKey = if ($env:AI_GATEWAY_API_KEY) {
-        $env:AI_GATEWAY_API_KEY
-    }
-    elseif ($env:VERCEL_OIDC_TOKEN) {
-        $env:VERCEL_OIDC_TOKEN
-    }
-
-    if ([string]::IsNullOrWhiteSpace($apiKey)) {
-        Write-Error 'Please set the AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN environment variable with a valid Vercel AI Gateway credential.'
-        return
+    if ([string]::IsNullOrWhiteSpace($env:OpenAICompatibleEndpoint)) {
+        throw 'Please set the OpenAICompatibleEndpoint environment variable to the base OpenAI-compatible API URL.'
     }
 
     $allowedToolNames = @()
@@ -75,19 +64,30 @@ function Invoke-VercelProvider {
             }
         }
 
-        # AI Gateway follows the OpenAI Chat Completions tool schema.
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
         $allowedToolNames = @(Get-ToolInvocationNames -Tools $Tools)
     }
 
+    $chatCompletionsUri = Get-OpenAICompatibleUri -Endpoint $env:OpenAICompatibleEndpoint -ResourcePath 'chat/completions'
+
+    $apiKey = if ($env:OpenAICompatibleKey) {
+        $env:OpenAICompatibleKey
+    }
+    else {
+        $env:OPENAI_COMPATIBLE_API_KEY
+    }
+
     $headers = @{
-        Authorization = "Bearer $apiKey"
         'Content-Type' = 'application/json'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($apiKey)) {
+        $headers.Authorization = "Bearer $apiKey"
     }
 
     $body = [ordered]@{
         model    = $ModelName
-        messages = [hashtable[]]$Messages
+        messages = [object[]]$Messages
         stream   = $false
     }
 
@@ -96,15 +96,15 @@ function Invoke-VercelProvider {
         $body.tool_choice = 'auto'
     }
 
-    $uri = 'https://ai-gateway.vercel.sh/v1/chat/completions'
     $iteration = 0
 
     while ($iteration -lt $MaxIterations) {
+        $requestBody = $body | ConvertTo-Json -Depth 20
         $params = @{
-            Uri     = $uri
+            Uri     = $chatCompletionsUri
             Method  = 'POST'
             Headers = $headers
-            Body    = $body | ConvertTo-Json -Depth 20
+            Body    = $requestBody
         }
 
         try {
@@ -122,23 +122,25 @@ function Invoke-VercelProvider {
             }
 
             if ($statusCode) {
-                Write-Error "Vercel AI Gateway API Error (HTTP $statusCode): $errorMessage"
+                $message = "OpenAI-compatible API Error (HTTP $statusCode): $errorMessage"
             }
             else {
-                Write-Error "Vercel AI Gateway API Error: $errorMessage"
+                $message = "OpenAI-compatible API Error: $errorMessage"
             }
 
-            return "Error calling Vercel AI Gateway: $($_.Exception.Message)"
+            Write-Error $message
+            throw $message
         }
 
         if ($response.error) {
             $errorMessage = if ($response.error.message) { $response.error.message } else { $response.error | Out-String }
-            Write-Error "Vercel AI Gateway API Error: $errorMessage"
-            return "Error: $errorMessage"
+            $message = "OpenAI-compatible API Error: $errorMessage"
+            Write-Error $message
+            throw $message
         }
 
         if (-not $response.choices -or @($response.choices).Count -eq 0) {
-            return 'No choices in response from Vercel AI Gateway.'
+            return 'No choices in response from OpenAI-compatible API.'
         }
 
         $assistantMessage = $response.choices[0].message
@@ -148,23 +150,59 @@ function Invoke-VercelProvider {
         }
 
         if ($toolCalls.Count -gt 0) {
-            $body.messages += $assistantMessage
+            $assistantContent = $assistantMessage.content
+            if ($assistantContent -is [array]) {
+                $assistantContent = ($assistantContent | ForEach-Object {
+                        if ($_.text) { $_.text } else { [string]$_ }
+                    }) -join ''
+            }
+
+            if ([string]::IsNullOrWhiteSpace([string]$assistantContent)) {
+                $assistantContent = $null
+            }
+            else {
+                $assistantContent = [string]$assistantContent
+            }
+
+            $nextMessages = New-Object 'System.Collections.Generic.List[hashtable]'
+            foreach ($message in @($body.messages)) {
+                $nextMessages.Add($message)
+            }
+
+            $assistantReplayMessage = @{
+                role       = if ($assistantMessage.role) { $assistantMessage.role } else { 'assistant' }
+                tool_calls = @($toolCalls)
+            }
+
+            if ($null -ne $assistantContent) {
+                $assistantReplayMessage.content = $assistantContent
+            }
+
+            if ($assistantMessage.PSObject.Properties['name']) {
+                $assistantReplayMessage.name = $assistantMessage.name
+            }
+
+            $nextMessages.Add($assistantReplayMessage)
 
             foreach ($call in $toolCalls) {
                 $functionName = $call.function.name
                 $functionArgs = @{}
+                $argumentParseError = $null
 
                 if ($call.function.arguments) {
                     try {
                         $functionArgs = $call.function.arguments | ConvertFrom-Json -AsHashtable
                     }
                     catch {
-                        $functionArgs = @{}
+                        $argumentParseError = "Error parsing tool arguments for $functionName`: $($_.Exception.Message)"
                     }
                 }
 
                 try {
-                    if ($allowedToolNames.Count -eq 0) {
+                    if ($argumentParseError) {
+                        $result = $argumentParseError
+                    }
+                    elseif ($allowedToolNames.Count -eq 0) {
                         $result = "Error: Tool $functionName was requested but no tools were supplied for this request."
                     }
                     else {
@@ -175,13 +213,15 @@ function Invoke-VercelProvider {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"
                 }
 
-                $body.messages += @{
+                $nextMessages.Add(@{
                     role         = 'tool'
+                    name         = $functionName
                     tool_call_id = $call.id
                     content      = [string]$result
-                }
+                })
             }
 
+            $body.messages = [object[]]$nextMessages.ToArray()
             $iteration++
             continue
         }
@@ -194,7 +234,7 @@ function Invoke-VercelProvider {
         }
 
         if ([string]::IsNullOrWhiteSpace([string]$content)) {
-            return 'No text content in response from Vercel AI Gateway.'
+            return 'No text content in response from OpenAI-compatible API.'
         }
 
         return [string]$content

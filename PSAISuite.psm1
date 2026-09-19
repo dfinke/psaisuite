@@ -1,8 +1,8 @@
 #Requires -Version 5.1
 
 # Get public and private function definition files
-$Public = @(Get-ChildItem -Path $PSScriptRoot\Public\*.ps1 -ErrorAction SilentlyContinue)
-$Providers = @(Get-ChildItem -Path $PSScriptRoot\Providers\*.ps1 -ErrorAction SilentlyContinue)
+$Public = @(Get-ChildItem -Path $PSScriptRoot\Public\*.ps1 -ErrorAction SilentlyContinue | Sort-Object -Property Name)
+$Providers = @(Get-ChildItem -Path $PSScriptRoot\Providers\*.ps1 -ErrorAction SilentlyContinue | Sort-Object -Property Name)
 
 # Dot source the files
 foreach ($import in @($Public + $Providers)) {
