@@ -71,16 +71,7 @@ function Invoke-OpenAICompatibleProvider {
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
     }
 
-    $apiEndpoint = $env:OpenAICompatibleEndpoint.Trim().TrimEnd('/')
-    $chatCompletionsUri = if ($apiEndpoint -match '/chat/completions$') {
-        $apiEndpoint
-    }
-    elseif ($apiEndpoint -match '/v1$') {
-        "$apiEndpoint/chat/completions"
-    }
-    else {
-        "$apiEndpoint/chat/completions"
-    }
+    $chatCompletionsUri = Get-OpenAICompatibleUri -Endpoint $env:OpenAICompatibleEndpoint -ResourcePath 'chat/completions'
 
     $apiKey = if ($env:OpenAICompatibleKey) {
         $env:OpenAICompatibleKey

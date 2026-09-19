@@ -220,13 +220,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 }
 
                 try {
-                    $openAICompatibleEndpoint = $env:OpenAICompatibleEndpoint.Trim().TrimEnd('/')
-                    $modelsUri = if ($openAICompatibleEndpoint -match '/chat/completions$') {
-                        $openAICompatibleEndpoint -replace '/chat/completions$', '/models'
-                    }
-                    else {
-                        "$openAICompatibleEndpoint/models"
-                    }
+                    $modelsUri = Get-OpenAICompatibleUri -Endpoint $env:OpenAICompatibleEndpoint -ResourcePath 'models'
 
                     $openAICompatibleKey = if ($env:OpenAICompatibleKey) {
                         $env:OpenAICompatibleKey

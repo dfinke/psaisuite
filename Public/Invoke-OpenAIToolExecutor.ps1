@@ -13,8 +13,12 @@ function Invoke-OpenAIToolExecutor {
         return Invoke-OpenAITool -FunctionName $FunctionName -FunctionArgs $FunctionArgs
     }
 
-    if ($AllowedToolNames -contains $FunctionName -and (Get-Command $FunctionName -ErrorAction SilentlyContinue)) {
-        return (& $FunctionName @FunctionArgs | Out-String)
+    $resolvedCommand = Get-Command -Name $FunctionName -CommandType Cmdlet, Function, ExternalScript, Application -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq $FunctionName } |
+        Select-Object -First 1
+
+    if ($AllowedToolNames -contains $FunctionName -and $resolvedCommand) {
+        return (& $resolvedCommand.Name @FunctionArgs | Out-String)
     }
 
     return 'Error: Tool execution is unavailable because Invoke-OpenAITool is not loaded.'

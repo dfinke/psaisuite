@@ -80,6 +80,16 @@ Describe 'Invoke-OpenAICompatibleProvider' {
         $global:openAICompatibleRequest.Uri | Should -Be 'https://example.invalid/v1/chat/completions'
     }
 
+    It 'preserves query strings when building the chat completions URI' {
+        $env:OpenAICompatibleEndpoint = 'https://example.invalid/openai/v1?tenant=demo'
+
+        InModuleScope PSAISuite {
+            Invoke-OpenAICompatibleProvider -ModelName 'custom-model' -Messages @(@{ role = 'user'; content = 'Hello' }) | Out-Null
+        }
+
+        $global:openAICompatibleRequest.Uri | Should -Be 'https://example.invalid/openai/v1/chat/completions?tenant=demo'
+    }
+
     It 'omits the authorization header when no key is configured' {
         Remove-Item Env:OpenAICompatibleKey -ErrorAction SilentlyContinue
 
@@ -178,10 +188,12 @@ Describe 'OpenAI-compatible model completion' {
         $env:OpenAICompatibleEndpoint = 'https://example.invalid/v1'
         $env:OpenAICompatibleKey = 'test-compatible-key'
         $global:openAICompatibleDiscoveryHeaders = $null
+        $global:openAICompatibleDiscoveryUri = $null
 
         Mock -ModuleName PSAISuite Invoke-RestMethod {
             param($Uri, $Headers)
             $global:openAICompatibleDiscoveryHeaders = $Headers
+            $global:openAICompatibleDiscoveryUri = $Uri
 
             [PSCustomObject]@{
                 data = @(
@@ -215,6 +227,15 @@ Describe 'OpenAI-compatible model completion' {
 
         $global:openAICompatibleDiscoveryHeaders.Authorization | Should -Be 'Bearer test-compatible-key'
         $completion.CompletionMatches.CompletionText | Should -Contain 'openaicompatible:custom-model'
+    }
+
+    It 'preserves query strings when building the models URI' {
+        $env:OpenAICompatibleEndpoint = 'https://example.invalid/openai/v1?tenant=demo'
+
+        $completion = TabExpansion2 -inputScript 'Invoke-ChatCompletion -Model openaicompatible:c' -cursorColumn 47
+
+        $completion.CompletionMatches.CompletionText | Should -Contain 'openaicompatible:custom-model'
+        $global:openAICompatibleDiscoveryUri | Should -Be 'https://example.invalid/openai/v1/models?tenant=demo'
     }
 
     It 'returns no completions when model discovery fails' {
