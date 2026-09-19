@@ -46,6 +46,7 @@ function Invoke-GoogleProvider {
     $apiKey = $env:GeminiKey
 
     # Process tools: if strings, register them; then convert to Google schema
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
@@ -148,7 +149,12 @@ function Invoke-GoogleProvider {
                     }
 
                     try {
-                        $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                        if ($allowedToolNames.Count -eq 0) {
+                            $result = "Error: Tool $functionName was requested but no tools were supplied for this request."
+                        }
+                        else {
+                            $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                        }
                     }
                     catch {
                         $result = "Error: $($_.Exception.Message)"

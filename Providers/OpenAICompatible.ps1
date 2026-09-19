@@ -52,6 +52,7 @@ function Invoke-OpenAICompatibleProvider {
         throw 'Please set the OpenAICompatibleEndpoint environment variable to the base OpenAI-compatible API URL.'
     }
 
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
@@ -199,6 +200,9 @@ function Invoke-OpenAICompatibleProvider {
                 try {
                     if ($argumentParseError) {
                         $result = $argumentParseError
+                    }
+                    elseif ($allowedToolNames.Count -eq 0) {
+                        $result = "Error: Tool $functionName was requested but no tools were supplied for this request."
                     }
                     else {
                         $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames

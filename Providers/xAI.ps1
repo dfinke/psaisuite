@@ -35,6 +35,7 @@ function Invoke-XAIProvider {
     )
 
     # Process tools: if strings, register them; then convert to provider schema
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
@@ -100,7 +101,12 @@ function Invoke-XAIProvider {
                     }
 
                     try {
-                        $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                        if ($allowedToolNames.Count -eq 0) {
+                            $result = "Error: Tool $functionName was requested but no tools were supplied for this request."
+                        }
+                        else {
+                            $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                        }
                     }
                     catch {
                         $result = "Error: $($_.Exception.Message)"

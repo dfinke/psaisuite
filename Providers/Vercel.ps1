@@ -63,6 +63,7 @@ function Invoke-VercelProvider {
         return
     }
 
+    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
@@ -163,7 +164,12 @@ function Invoke-VercelProvider {
                 }
 
                 try {
-                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                    if ($allowedToolNames.Count -eq 0) {
+                        $result = "Error: Tool $functionName was requested but no tools were supplied for this request."
+                    }
+                    else {
+                        $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs -AllowedToolNames $allowedToolNames
+                    }
                 }
                 catch {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"

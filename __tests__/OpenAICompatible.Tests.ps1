@@ -120,6 +120,17 @@ Describe 'Invoke-OpenAICompatibleProvider' {
         $global:openAICompatibleRequest.Headers.ContainsKey('Authorization') | Should -BeFalse
     }
 
+    It 'uses OPENAI_COMPATIBLE_API_KEY when OpenAICompatibleKey is absent' {
+        Remove-Item Env:OpenAICompatibleKey -ErrorAction SilentlyContinue
+        $env:OPENAI_COMPATIBLE_API_KEY = 'alternate-compatible-key'
+
+        InModuleScope PSAISuite {
+            Invoke-OpenAICompatibleProvider -ModelName 'custom-model' -Messages @(@{ role = 'user'; content = 'Hello' }) | Out-Null
+        }
+
+        $global:openAICompatibleRequest.Headers.Authorization | Should -Be 'Bearer alternate-compatible-key'
+    }
+
     It 'executes tool calls and sends tool output in the next request' {
         $global:openAICompatibleRequestCount = 0
         $global:openAICompatibleSecondRequest = $null
