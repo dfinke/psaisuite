@@ -177,11 +177,8 @@ function Invoke-OpenAICompatibleProvider {
                     if (Get-Command Invoke-OpenAITool -ErrorAction SilentlyContinue) {
                         $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
                     }
-                    elseif (Get-Command $functionName -ErrorAction SilentlyContinue) {
-                        $result = & $functionName @functionArgs | Out-String
-                    }
                     else {
-                        $result = "Error: Function $functionName not found"
+                        $result = 'Error: OpenAI tool execution is unavailable because Invoke-OpenAITool is not loaded.'
                     }
                 }
                 catch {
