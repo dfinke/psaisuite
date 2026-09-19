@@ -10,6 +10,7 @@ $script:ChatCompletionProviders = @{
     deepseek    = @{ Tooltip = 'AI Provider: DeepSeek' }
     xai         = @{ Tooltip = 'AI Provider: xAI' }
     mistral     = @{ Tooltip = 'AI Provider: Mistral' }
+    together    = @{ Tooltip = 'AI Provider: Together AI' }
     fireworksai = @{ Tooltip = 'AI Provider: Fireworks AI' }
     novita      = @{ Tooltip = 'AI Provider: Novita' }
     poe         = @{ Tooltip = 'AI Provider: Poe' }
@@ -131,6 +132,14 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                 $response = Invoke-RestMethod https://api.mistral.ai/v1/models -Headers @{
                     "Authorization" = "Bearer $env:MistralKey"
                     "Accept"        = "application/json"
+                }
+
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+            }
+            'together' {
+                $response = Invoke-RestMethod https://api.together.xyz/v1/models -Headers @{
+                    "Authorization" = "******"
+                    "Content-Type"  = "application/json"
                 }
 
                 $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
