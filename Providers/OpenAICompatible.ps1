@@ -52,23 +52,19 @@ function Invoke-OpenAICompatibleProvider {
         throw 'Please set the OpenAICompatibleEndpoint environment variable to the base OpenAI-compatible API URL.'
     }
 
-    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
             if ($tool -is [string]) {
-                $allowedToolNames += $tool
                 $toolDefinitions.Add((Register-Tool $tool))
             }
             else {
-                if ($tool.Name) {
-                    $allowedToolNames += [string]$tool.Name
-                }
                 $toolDefinitions.Add($tool)
             }
         }
 
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
+        $allowedToolNames = @(Get-ToolInvocationNames -Tools $Tools)
     }
 
     $chatCompletionsUri = Get-OpenAICompatibleUri -Endpoint $env:OpenAICompatibleEndpoint -ResourcePath 'chat/completions'

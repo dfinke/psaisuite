@@ -63,24 +63,20 @@ function Invoke-VercelProvider {
         return
     }
 
-    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
             if ($tool -is [string]) {
-                $allowedToolNames += $tool
                 $toolDefinitions.Add((Register-Tool $tool))
             }
             else {
-                if ($tool.Name) {
-                    $allowedToolNames += [string]$tool.Name
-                }
                 $toolDefinitions.Add($tool)
             }
         }
 
         # AI Gateway follows the OpenAI Chat Completions tool schema.
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
+        $allowedToolNames = @(Get-ToolInvocationNames -Tools $Tools)
     }
 
     $headers = @{

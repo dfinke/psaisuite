@@ -35,22 +35,18 @@ function Invoke-XAIProvider {
     )
 
     # Process tools: if strings, register them; then convert to provider schema
-    $allowedToolNames = @()
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
         foreach ($tool in $Tools) {
             if ($tool -is [string]) {
-                $allowedToolNames += $tool
                 $toolDefinitions.Add((Register-Tool $tool))
             }
             else {
-                if ($tool.Name) {
-                    $allowedToolNames += [string]$tool.Name
-                }
                 $toolDefinitions.Add($tool)
             }
         }
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
+        $allowedToolNames = @(Get-ToolInvocationNames -Tools $Tools)
     }
     
     $headers = @{
