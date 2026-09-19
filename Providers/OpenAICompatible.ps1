@@ -167,6 +167,11 @@ function Invoke-OpenAICompatibleProvider {
                 $assistantContent = [string]$assistantContent
             }
 
+            $nextMessages = New-Object 'System.Collections.Generic.List[hashtable]'
+            foreach ($message in @($body.messages)) {
+                $nextMessages.Add($message)
+            }
+
             $assistantReplayMessage = @{
                 role       = if ($assistantMessage.role) { $assistantMessage.role } else { 'assistant' }
                 content    = $assistantContent
@@ -177,7 +182,7 @@ function Invoke-OpenAICompatibleProvider {
                 $assistantReplayMessage.name = $assistantMessage.name
             }
 
-            $body.messages += $assistantReplayMessage
+            $nextMessages.Add($assistantReplayMessage)
 
             foreach ($call in $toolCalls) {
                 $functionName = $call.function.name
@@ -199,13 +204,14 @@ function Invoke-OpenAICompatibleProvider {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"
                 }
 
-                $body.messages += @{
+                $nextMessages.Add(@{
                     role         = 'tool'
                     tool_call_id = $call.id
                     content      = [string]$result
-                }
+                })
             }
 
+            $body.messages = [hashtable[]]$nextMessages.ToArray()
             $iteration++
             continue
         }
