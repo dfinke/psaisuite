@@ -87,7 +87,7 @@ function Invoke-OpenAICompatibleProvider {
 
     $body = [ordered]@{
         model    = $ModelName
-        messages = [hashtable[]]$Messages
+        messages = [object[]]$Messages
         stream   = $false
     }
 
@@ -99,11 +99,12 @@ function Invoke-OpenAICompatibleProvider {
     $iteration = 0
 
     while ($iteration -lt $MaxIterations) {
+        $requestBody = $body | ConvertTo-Json -Depth 20
         $params = @{
             Uri     = $chatCompletionsUri
             Method  = 'POST'
             Headers = $headers
-            Body    = $body | ConvertTo-Json -Depth 20
+            Body    = $requestBody
         }
 
         try {
@@ -220,7 +221,7 @@ function Invoke-OpenAICompatibleProvider {
                 })
             }
 
-            $body.messages = [hashtable[]]$nextMessages.ToArray()
+            $body.messages = [object[]]$nextMessages.ToArray()
             $iteration++
             continue
         }
