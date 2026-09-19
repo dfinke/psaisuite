@@ -1,4 +1,4 @@
-function Invoke-RegisteredToolCall {
+function Invoke-OpenAIToolExecutor {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -11,5 +11,5 @@ function Invoke-RegisteredToolCall {
         return Invoke-OpenAITool -FunctionName $FunctionName -FunctionArgs $FunctionArgs
     }
 
-    return 'Error: Tool execution is unavailable because the registered tool executor is not loaded.'
+    return 'Error: Tool execution is unavailable because Invoke-OpenAITool is not loaded.'
 }

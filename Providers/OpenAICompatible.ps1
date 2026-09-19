@@ -153,9 +153,23 @@ function Invoke-OpenAICompatibleProvider {
         }
 
         if ($toolCalls.Count -gt 0) {
+            $assistantContent = $assistantMessage.content
+            if ($assistantContent -is [array]) {
+                $assistantContent = ($assistantContent | ForEach-Object {
+                        if ($_.text) { $_.text } else { [string]$_ }
+                    }) -join ''
+            }
+
+            if ([string]::IsNullOrWhiteSpace([string]$assistantContent)) {
+                $assistantContent = $null
+            }
+            else {
+                $assistantContent = [string]$assistantContent
+            }
+
             $body.messages += [ordered]@{
                 role       = if ($assistantMessage.role) { $assistantMessage.role } else { 'assistant' }
-                content    = $assistantMessage.content
+                content    = $assistantContent
                 tool_calls = @($toolCalls)
             }
 
@@ -173,7 +187,7 @@ function Invoke-OpenAICompatibleProvider {
                 }
 
                 try {
-                    $result = Invoke-RegisteredToolCall -FunctionName $functionName -FunctionArgs $functionArgs
+                    $result = Invoke-OpenAIToolExecutor -FunctionName $functionName -FunctionArgs $functionArgs
                 }
                 catch {
                     $result = "Error executing $functionName`: $($_.Exception.Message)"
