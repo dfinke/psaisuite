@@ -7,6 +7,7 @@ $script:ChatCompletionProviders = @{
     github      = @{ Tooltip = 'AI Provider: GitHub' }
     openrouter  = @{ Tooltip = 'AI Provider: OpenRouter' }
     anthropic   = @{ Tooltip = 'AI Provider: Anthropic' }
+    baseten     = @{ Tooltip = 'AI Provider: Baseten' }
     deepseek    = @{ Tooltip = 'AI Provider: DeepSeek' }
     xai         = @{ Tooltip = 'AI Provider: xAI' }
     mistral     = @{ Tooltip = 'AI Provider: Mistral' }
@@ -109,6 +110,14 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName '
                     "x-api-key"         = $env:AnthropicKey
                     "anthropic-version" = "2023-06-01"
                 }
+                $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
+            }
+            'baseten' {
+                $response = Invoke-RestMethod https://inference.baseten.co/v1/models -Headers @{
+                    "Authorization" = "******"
+                    "Content-Type"  = "application/json"
+                }
+
                 $models = $response.data | ConvertTo-ModelCatalogItem -Provider $providerKey
             }
             'deepseek' {

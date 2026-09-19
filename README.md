@@ -30,6 +30,7 @@ Real results. Real latency. Across all 15 providers.
 Currently supported providers are:
 
 - [Anthropic](guides/anthropic.md)
+- [Baseten](guides/baseten.md)
 - [Azure AI Foundry](guides/azureai.md)
 - [DeepSeek](guides/deepseek.md)
 - [GitHub](guides/github.md)
@@ -75,6 +76,7 @@ Set the API keys.
 ```powershell
 $env:OpenAIKey="your-openai-api-key"
 $env:AnthropicKey="your-anthropic-api-key"
+$env:BASETEN_API_KEY="your-baseten-api-key"
 $env:NebiusKey="your-nebius-api-key"
 $env:GITHUB_TOKEN="your-github-token" # Add GitHub token
 # ... and so on for other providers
