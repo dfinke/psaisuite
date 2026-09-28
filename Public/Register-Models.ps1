@@ -50,7 +50,7 @@ function ConvertTo-ModelCatalogItem {
     }
 }
 
-Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion' -ParameterName 'Model' -ScriptBlock {
+Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion', 'New-AgentHarness' -ParameterName 'Model' -ScriptBlock {
     param(
         [string] $commandName,
         [string] $parameterName,

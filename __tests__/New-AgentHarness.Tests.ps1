@@ -17,7 +17,7 @@ Describe 'New-AgentHarness' {
 
     It 'exports a constructor that does no model work' {
         (Get-Command New-AgentHarness).ModuleName | Should -Be 'PSAISuite'
-        $harness = New-AgentHarness
+        $harness = New-AgentHarness -PassThru
         $harness.Model | Should -Be 'openai:gpt-5.6-luna'
         @($harness.Tools).Count | Should -Be 0
         $harness.MaxIterations | Should -Be 5
@@ -25,7 +25,7 @@ Describe 'New-AgentHarness' {
     }
 
     It 'forwards instructions, command names, model, and round limit' {
-        $harness = New-AgentHarness -Model 'anthropic:test' -Tools Get-ChildItem, Get-Date -SystemPrompt 'Inspect files.' -MaxIterations 3
+        $harness = New-AgentHarness -PassThru -Model 'anthropic:test' -Tools Get-ChildItem, Get-Date -SystemPrompt 'Inspect files.' -MaxIterations 3
         $result = $harness.GetResponse('List files.')
         $result.Model | Should -Be 'anthropic:test'
         $result.Tools | Should -Be @('Get-ChildItem', 'Get-Date')
@@ -38,8 +38,8 @@ Describe 'New-AgentHarness' {
     }
 
     It 'uses current properties without retaining previous requests or changing other harnesses' {
-        $first = New-AgentHarness -Tools Get-Date
-        $second = New-AgentHarness
+        $first = New-AgentHarness -PassThru -Tools Get-Date
+        $second = New-AgentHarness -PassThru
         $null = $first.GetResponse('First request')
         $first.Model = 'anthropic:test'
         $first.Tools = @('Get-ChildItem')
@@ -58,7 +58,7 @@ Describe 'New-AgentHarness' {
 
     It 'preserves schema tools and completion output' {
         $schema = @{ Name = 'Get-Weather'; Description = 'Weather'; Parameters = @{ type = 'object' } }
-        $harness = New-AgentHarness -Tools $schema
+        $harness = New-AgentHarness -PassThru -Tools $schema
         $result = $harness.GetResponse('Weather?')
         $result.Tools[0] | Should -Be $schema
         Mock -ModuleName PSAISuite Invoke-ChatCompletion { 'The answer' }
@@ -67,7 +67,7 @@ Describe 'New-AgentHarness' {
 
     It 'propagates completion errors' {
         Mock -ModuleName PSAISuite Invoke-ChatCompletion { throw 'Provider unavailable' }
-        $harness = New-AgentHarness
+        $harness = New-AgentHarness -PassThru
         { $harness.GetResponse('Hello') } | Should -Throw '*Provider unavailable*'
     }
 
@@ -75,7 +75,7 @@ Describe 'New-AgentHarness' {
         { New-AgentHarness -MaxIterations 0 } | Should -Throw
         { New-AgentHarness -MaxIterations 101 } | Should -Throw
         { New-AgentHarness -Model '' } | Should -Throw
-        $harness = New-AgentHarness
+        $harness = New-AgentHarness -PassThru
         { $harness.GetResponse('') } | Should -Throw
     }
 }

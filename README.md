@@ -177,22 +177,42 @@ can run reliably even when a model supplies placeholder arguments.
 
 ### Build a custom agent harness
 
-Available in **v0.8.10**. For a walkthrough, see
+Updated in **v0.9.0** with prompt execution and an interactive mode.
+**Migration:** calls that previously returned a harness object must now add
+`-PassThru`; omitting `-Prompt` starts an interactive conversation.
+For the original object-based walkthrough, see
 [Build a Custom Agent Harness with PowerShell and PSAISuite](https://dfinke.github.io/powershell/ai/agents/automation/2026/09/12/build-a-custom-agent-harness-with-powershell-and-psaisuite.html).
 
-`New-AgentHarness` packages a model, tools, instructions, and a tool-round limit
-into an editable PowerShell object. Call `GetResponse` to run a request through
-PSAISuite's existing model/tool loop:
+`New-AgentHarness -Prompt` runs a request through PSAISuite's existing agent
+loop, executes tool calls, and returns the final response:
 
 ```powershell
-$harness = New-AgentHarness -Tools Get-ChildItem
-$harness.GetResponse('List the files in the current directory.')
+New-AgentHarness -Prompt 'List the files in the current directory.' -Tools Get-ChildItem
 ```
 
-Configure the harness for a particular task:
+`Prompt` is the first positional parameter, so you can also write:
 
 ```powershell
-$harness = New-AgentHarness -Model 'openai:gpt-5.6-luna' -Tools Get-ChildItem -SystemPrompt 'Use the tool to answer questions about files.' -MaxIterations 3
+New-AgentHarness 'What time is it?' -Tools Get-Date
+```
+
+Omit `-Prompt` to start an interactive conversation using `Read-Host`. Each
+turn runs the same model/tool loop. User messages and final assistant replies
+are retained for follow-up questions during the session; tool exchanges are
+handled within each turn. Enter `exit`, `quit`, or an empty line to finish.
+
+```powershell
+New-AgentHarness -Model 'openai:gpt-5.6-luna' -Tools Get-Date -SystemPrompt 'Use tools when needed.' -MaxIterations 3
+```
+
+`-Model` supports the same provider and model tab completion as
+`Invoke-ChatCompletion`.
+
+To create an editable object without starting a request or reading input, use
+`-PassThru`. Existing object-construction calls should add this switch:
+
+```powershell
+$harness = New-AgentHarness -PassThru -Model 'openai:gpt-5.6-luna' -Tools Get-ChildItem -SystemPrompt 'Use the tool to answer questions about files.' -MaxIterations 3
 $harness.GetResponse('What files are here?')
 
 $harness | Format-List Model, Tools, SystemPrompt, MaxIterations
@@ -204,11 +224,19 @@ Tools can be command names or the tool schemas accepted by
 and five tool-calling rounds. Provider credentials, model overrides such as
 `PSAISUITE_DEFAULT_MODEL`, and provider support follow `Invoke-ChatCompletion`.
 
-Creating the object makes no model request. Each `GetResponse` call uses the
+`-PassThru` cannot be combined with `-Prompt`. Creating the object with
+`-PassThru` makes no model request. Each `GetResponse` call uses the
 current properties and starts a fresh conversation; it does not retain earlier
 messages. This wrapper adds no sandbox or permissions beyond the tools you
 provide. `MaxIterations` is a round limit for supported providers, not a token
 or spending budget.
+
+To verify prompt execution, real tool calls, interactive history, and live model
+completion using your configured credentials, run the explicit live test:
+
+```powershell
+pwsh -NoProfile -File ./__tests__/Test-AgentHarnessLive.ps1
+```
 
 ### OpenAI instructions and tool workflows
 

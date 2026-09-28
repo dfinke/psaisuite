@@ -1,3 +1,17 @@
+# v0.9.0
+
+- Added provider/model tab completion to `New-AgentHarness -Model`.
+- Added `New-AgentHarness -Prompt` to run a prompt and its tool calls immediately.
+- `Prompt` is the first positional parameter, so `New-AgentHarness 'Hello'`
+  runs a prompt without naming the parameter.
+- Without a prompt, `New-AgentHarness` now reads an interactive conversation with
+  `Read-Host`, retaining user messages and final replies between turns. Enter
+  `exit`, `quit`, or an empty line to finish.
+- **Breaking change:** existing callers that only need the editable harness object must add
+  `-PassThru`; its `GetResponse` method continues to start a fresh conversation.
+- Added an explicit live test for model completion, prompt execution, tool calls,
+  and interactive conversation history using configured provider credentials.
+
 # v0.8.10
 
 - Added the Vercel AI Gateway provider with OpenAI-compatible chat completions,
