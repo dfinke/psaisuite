@@ -27,7 +27,7 @@
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Write a PowerShell function to calculate factorial'
     $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $Message
-    
+
 .EXAMPLE
     $response = Invoke-OpenAIProvider -ModelName 'gpt-4' -Messages $messages -Tools "Get-ChildItem"
 
@@ -249,33 +249,6 @@ function ConvertTo-OpenAIInstructionText {
     return [string]$Content
 }
 
-function Write-OpenAIActivity {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Message,
-        [int]$Iteration,
-        [int]$MaxIterations
-    )
-
-    $timestampedMessage = "[$((Get-Date).ToString('o'))] $Message"
-    Write-Verbose $timestampedMessage
-
-    $percentComplete = 0
-    if ($MaxIterations -gt 0) {
-        $percentComplete = [Math]::Min(99, [Math]::Max(0, [int](($Iteration / $MaxIterations) * 100)))
-    }
-
-    Write-Progress `
-        -Id 9173 `
-        -Activity 'OpenAI tool workflow' `
-        -Status $timestampedMessage `
-        -PercentComplete $percentComplete
-}
-
-function Complete-OpenAIActivity {
-    Write-Progress -Id 9173 -Activity 'OpenAI tool workflow' -Completed
-}
-
 function Invoke-OpenAITool {
     param(
         [Parameter(Mandatory)]
@@ -385,7 +358,7 @@ function Invoke-OpenAIProvider {
         [ValidateSet('auto', 'default', 'flex', 'fast', 'priority')]
         [string]$SpeedLevel
     )
-    
+
     # Process tools: if strings, register them; then convert to provider schema
     if ($Tools) {
         $toolDefinitions = New-Object System.Collections.Generic.List[object]
@@ -399,15 +372,15 @@ function Invoke-OpenAIProvider {
         }
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider openai
     }
-    
+
     $headers = @{
         'Authorization' = "Bearer $env:OpenAIKey"
         'OpenAI-Beta'   = 'responses=v1'
         'content-type'  = 'application/json'
     }
-    
+
     $Uri = "https://api.openai.com/v1/responses"
-    
+
     $projectInstructionState = Get-OpenAIProjectInstructionState
     $messageInstructions = @(
         $Messages |
@@ -451,139 +424,146 @@ function Invoke-OpenAIProvider {
                 }
             })
     }
-    
+
     $iteration = 0
-    
-    while ($iteration -lt $MaxIterations) {
-        $round = $iteration + 1
-        Write-OpenAIActivity -Message "Request started (round $round/$MaxIterations)" -Iteration $iteration -MaxIterations $MaxIterations
+    $activity = New-AgentActivity -Provider 'OpenAI' -Model $ModelName -MaxIterations $MaxIterations
 
-        $params = @{
-            Uri     = $Uri
-            Method  = 'POST'
-            Headers = $headers
-            Body    = $body | ConvertTo-Json -Depth 10
-        }
-        
-        try {
-            $response = Invoke-RestMethod @params
-            
-            # Check if the response contains an error
-            if ($response.error) {
-                Complete-OpenAIActivity
-                Write-Error $response.error.message
-                return "Error: $($response.error.message)"
+    try {
+        while ($iteration -lt $MaxIterations) {
+            $round = $iteration + 1
+            Write-AgentActivity -Activity $activity -Message 'Waiting for response' -Round $round
+
+            $params = @{
+                Uri     = $Uri
+                Method  = 'POST'
+                Headers = $headers
+                Body    = $body | ConvertTo-Json -Depth 10
             }
-            
-            # Check if output exists
-            if (!$response.output) {
-                Complete-OpenAIActivity
-                return "No output in response from API."
-            }
-            
-            # Check for function calls in the response output
-            $functionCalls = $response.output | Where-Object { $_.type -eq 'function_call' }
-            
-            if ($functionCalls) {
-                Write-OpenAIActivity -Message "Model requested $(@($functionCalls).Count) tool call(s)" -Iteration $iteration -MaxIterations $MaxIterations
 
-                # Add all response output items to the input for context
-                $body.input += $response.output
-                
-                # Execute function calls and add results
-                foreach ($call in $functionCalls) {
-                    $functionName = $call.name
-                    $toolStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-                    Write-OpenAIActivity -Message "Tool started: $functionName" -Iteration $iteration -MaxIterations $MaxIterations
+            try {
+                $response = Invoke-RestMethod @params
 
-                    try {
-                        $functionArgs = if ($call.arguments) {
-                            $call.arguments | ConvertFrom-Json -AsHashtable
+                # Check if the response contains an error
+                if ($response.error) {
+                    Write-AgentActivity -Activity $activity -Message 'Request failed: provider returned an error' -Completed
+                    Write-Error $response.error.message
+                    return "Error: $($response.error.message)"
+                }
+
+                # Check if output exists
+                if (!$response.output) {
+                    Write-AgentActivity -Activity $activity -Message 'Request failed: no content in response' -Completed
+                    return "No output in response from API."
+                }
+
+                # Check for function calls in the response output
+                $functionCalls = $response.output | Where-Object { $_.type -eq 'function_call' }
+
+                if ($functionCalls) {
+                    Write-AgentActivity -Activity $activity -Message "Model requested $(@($functionCalls).Count) tool call(s)"
+
+                    # Add all response output items to the input for context
+                    $body.input += $response.output
+
+                    # Execute function calls and add results
+                    foreach ($call in $functionCalls) {
+                        $functionName = $call.name
+                        $toolStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                        Write-AgentActivity -Activity $activity -Message "Tool started: $functionName"
+
+                        try {
+                            $functionArgs = if ($call.arguments) {
+                                $call.arguments | ConvertFrom-Json -AsHashtable
+                            }
+                            else {
+                                @{}
+                            }
+
+                            $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
+                        }
+                        catch {
+                            $result = "Error executing $FunctionName`: $($_.Exception.Message)"
+                        }
+
+                        $toolStopwatch.Stop()
+                        $toolStatus = if ($result -match '^Error(?: executing|:)') { 'Tool failed' } else { 'Tool completed' }
+                        Write-AgentActivity -Activity $activity -Message "$toolStatus`: $functionName ($($toolStopwatch.ElapsedMilliseconds) ms)"
+
+                        $body.input += @{
+                            type    = 'function_call_output'
+                            call_id = $call.call_id
+                            output  = $result
+                        }
+                    }
+
+                    $updatedProjectInstructionState = Get-OpenAIProjectInstructionState
+                    $instructionsChanged = if ($null -eq $projectInstructionState) {
+                        $null -ne $updatedProjectInstructionState
+                    }
+                    else {
+                        $null -eq $updatedProjectInstructionState -or $updatedProjectInstructionState.Signature -ne $projectInstructionState.Signature
+                    }
+
+                    if ($instructionsChanged) {
+                        $projectInstructionState = $updatedProjectInstructionState
+                        $updatedInstructionText = Get-OpenAIInstructionText -Messages $messageInstructions -ProjectInstructionState $projectInstructionState
+                        if ($updatedInstructionText) {
+                            $body['instructions'] = $updatedInstructionText
                         }
                         else {
-                            @{}
+                            [void]$body.Remove('instructions')
                         }
 
-                        $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
+                        if ($updatedProjectInstructionState) {
+                            Write-AgentActivity -Activity $activity -Message "AGENTS.md discovered or changed; loaded for next request"
+                        }
+                        else {
+                            Write-AgentActivity -Activity $activity -Message 'AGENTS.md was removed; updated context for next request'
+                        }
                     }
-                    catch {
-                        $result = "Error executing $FunctionName`: $($_.Exception.Message)"
-                    }
-
-                    $toolStopwatch.Stop()
-                    Write-OpenAIActivity -Message "Tool completed: $functionName ($($toolStopwatch.ElapsedMilliseconds) ms)" -Iteration $iteration -MaxIterations $MaxIterations
-                    
-                    $body.input += @{
-                        type    = 'function_call_output'
-                        call_id = $call.call_id
-                        output  = $result
-                    }
-                }
-
-                $updatedProjectInstructionState = Get-OpenAIProjectInstructionState
-                $instructionsChanged = if ($null -eq $projectInstructionState) {
-                    $null -ne $updatedProjectInstructionState
                 }
                 else {
-                    $null -eq $updatedProjectInstructionState -or $updatedProjectInstructionState.Signature -ne $projectInstructionState.Signature
-                }
+                    # No function calls, extract text from message output items
+                    # Responses API returns: output[].type='message', output[].content[].type='output_text'
+                    $textOutput = ($response.output | Where-Object { $_.type -eq 'message' } | ForEach-Object {
+                            if ($_.content -is [array]) {
+                                ($_.content | Where-Object { $_.type -eq 'output_text' } | ForEach-Object { $_.text }) -join ''
+                            }
+                            elseif ($_.content) {
+                                $_.content
+                            }
+                    }) -join ''
+                    if (!$textOutput) {
+                        Write-AgentActivity -Activity $activity -Message 'Request failed: no text in response' -Completed
+                        return "No text content in response."
+                    }
+                    Write-AgentActivity -Activity $activity -Message 'Response completed' -Completed
 
-                if ($instructionsChanged) {
-                    $projectInstructionState = $updatedProjectInstructionState
-                    $updatedInstructionText = Get-OpenAIInstructionText -Messages $messageInstructions -ProjectInstructionState $projectInstructionState
-                    if ($updatedInstructionText) {
-                        $body['instructions'] = $updatedInstructionText
-                    }
-                    else {
-                        [void]$body.Remove('instructions')
-                    }
-
-                    if ($updatedProjectInstructionState) {
-                        Write-OpenAIActivity -Message "AGENTS.md discovered or changed; loaded for next request" -Iteration $iteration -MaxIterations $MaxIterations
-                    }
-                    else {
-                        Write-OpenAIActivity -Message 'AGENTS.md was removed; updated context for next request' -Iteration $iteration -MaxIterations $MaxIterations
+                    return [PSCustomObject]@{
+                        Text                   = $textOutput
+                        MaxIterations          = $MaxIterations
+                        RequestedEffortLevel   = $EffortLevel
+                        RequestedSpeedLevel    = $SpeedLevel
+                        ReasoningEffort        = if ($response.reasoning) { $response.reasoning.effort } else { $null }
+                        ServiceTier            = $response.service_tier
                     }
                 }
             }
-            else {
-                # No function calls, extract text from message output items
-                # Responses API returns: output[].type='message', output[].content[].type='output_text'
-                $textOutput = ($response.output | Where-Object { $_.type -eq 'message' } | ForEach-Object {
-                        if ($_.content -is [array]) {
-                            ($_.content | Where-Object { $_.type -eq 'output_text' } | ForEach-Object { $_.text }) -join ''
-                        }
-                        elseif ($_.content) {
-                            $_.content
-                        }
-                }) -join ''
-                if (!$textOutput) {
-                    Complete-OpenAIActivity
-                    return "No text content in response."
-                }
-                Write-OpenAIActivity -Message "Response completed (round $round/$MaxIterations)" -Iteration $MaxIterations -MaxIterations $MaxIterations
-                Complete-OpenAIActivity
-                return [PSCustomObject]@{
-                    Text                   = $textOutput
-                    MaxIterations          = $MaxIterations
-                    RequestedEffortLevel   = $EffortLevel
-                    RequestedSpeedLevel    = $SpeedLevel
-                    ReasoningEffort        = if ($response.reasoning) { $response.reasoning.effort } else { $null }
-                    ServiceTier            = $response.service_tier
-                }
+            catch {
+                Write-AgentActivity -Activity $activity -Message 'Request failed' -Completed
+                $statusCode = $_.Exception.Response.StatusCode.value__
+                $errorMessage = $_.ErrorDetails.Message
+                Write-Error "OpenAI API Error (HTTP $statusCode): $errorMessage"
+                return "Error calling OpenAI API: $($_.Exception.Message)"
             }
+
+            $iteration++
         }
-        catch {
-            Complete-OpenAIActivity
-            $statusCode = $_.Exception.Response.StatusCode.value__
-            $errorMessage = $_.ErrorDetails.Message
-            Write-Error "OpenAI API Error (HTTP $statusCode): $errorMessage"
-            return "Error calling OpenAI API: $($_.Exception.Message)"
-        }
-        
-        $iteration++
+
+        Write-AgentActivity -Activity $activity -Message 'Stopped: maximum iterations reached' -Completed
+        return "Maximum iterations reached without completing the response after $MaxIterations iterations."
     }
-
-    Complete-OpenAIActivity
-    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
+    finally {
+        Write-AgentActivity -Activity $activity -Message 'Request stopped' -Completed
+    }
 }

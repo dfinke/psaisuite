@@ -6,6 +6,8 @@ Invokes a completion request to a specified AI model provider.
 The Invoke-ChatCompletion function sends a prompt to a specified AI model provider and returns the completion response text by default. 
 The model provider and model name must be specified in the 'provider:model' format. The function dynamically constructs 
 the provider-specific function name and invokes it to get the response. It can also accept context via the pipeline.
+OpenAI and Anthropic report request rounds, tool activity, elapsed time, and
+completion/failure through PowerShell progress. Add -Verbose for an activity log.
 
 .PARAMETER Messages
 The messages to be sent to the AI model for completion. This parameter is optional and can accept either:

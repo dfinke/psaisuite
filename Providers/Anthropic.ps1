@@ -25,7 +25,7 @@
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Summarize the key events of World War II'
     $response = Invoke-AnthropicProvider -ModelName 'claude-3-opus' -Messages $Message
-    
+
 .NOTES
     Requires the AnthropicKey environment variable to be set with a valid API key.
     Uses a max_tokens value of 4096, shared by thinking and response text.
@@ -61,13 +61,13 @@ function Invoke-AnthropicProvider {
         }
         $Tools = ConvertTo-ProviderToolSchema -Tools $toolDefinitions -Provider anthropic
     }
-    
+
     $headers = @{
         'x-api-key'         = $env:AnthropicKey
         'anthropic-version' = '2023-06-01'
         'content-type'      = 'application/json'
     }
-    
+
     $body = @{
         'model'      = $ModelName
         'max_tokens' = 4096  # Includes thinking as well as response text
@@ -94,7 +94,7 @@ function Invoke-AnthropicProvider {
             $MessagesList += $Msg
         }
     }
-    
+
     $body['messages'] = $MessagesList
 
     if ($Tools) {
@@ -107,114 +107,139 @@ function Invoke-AnthropicProvider {
         Write-Host "Anthropic tools count: $toolCount"
         Write-Host "Anthropic request body: $($body | ConvertTo-Json -Depth 10)"
     }
-        
+
     $Uri = "https://api.anthropic.com/v1/messages"
-    
+
     $iteration = 0
+    $activity = New-AgentActivity -Provider 'Anthropic' -Model $ModelName -MaxIterations $MaxIterations
 
-    while ($iteration -lt $MaxIterations) {
-        $params = @{
-            Uri     = $Uri
-            Method  = 'POST'
-            Headers = $headers
-            Body    = $body | ConvertTo-Json -Depth 10
-        }
-        
-        try {
-            $response = Invoke-RestMethod @params
-
-            if ($response.error) {
-                Write-Error $response.error.message
-                return "Error: $($response.error.message)"
+    try {
+        while ($iteration -lt $MaxIterations) {
+            Write-AgentActivity -Activity $activity -Message 'Waiting for response' -Round ($iteration + 1)
+            $params = @{
+                Uri     = $Uri
+                Method  = 'POST'
+                Headers = $headers
+                Body    = $body | ConvertTo-Json -Depth 10
             }
 
-            if ($env:PSAISUITE_DEBUG_ANTHROPIC -eq '1') {
-                Write-Host "Anthropic stop_reason: $($response.stop_reason)"
-                if ($response.content) {
-                    Write-Host "Anthropic response content: $($response.content | ConvertTo-Json -Depth 10)"
-                }
-            }
+            try {
+                $response = Invoke-RestMethod @params
 
-            # Thinking counts against max_tokens, even when its text is hidden.
-            # A truncated response can also contain incomplete tool arguments;
-            # do not execute tools or return partial code as a finished answer.
-            if ($response.stop_reason -eq 'max_tokens') {
-                return "Anthropic response exceeded the output token limit (max_tokens=$($body.max_tokens), including thinking). The response is incomplete; no tool calls from this response were executed."
-            }
-
-            if (!$response.content) {
-                return "No content in response from API."
-            }
-
-            $toolUses = @($response.content | Where-Object { $_.type -eq 'tool_use' })
-            if ($toolUses.Count -gt 0) {
-                $body.messages += @{
-                    role    = 'assistant'
-                    content = $response.content
+                if ($response.error) {
+                    Write-AgentActivity -Activity $activity -Message 'Request failed: provider returned an error' -Completed
+                    Write-Error $response.error.message
+                    return "Error: $($response.error.message)"
                 }
 
-                foreach ($call in $toolUses) {
-                    $functionName = $call.name
-                    $functionArgs = @{}
-                    if ($call.input) {
-                        # Convert PSObject from JSON response to hashtable for splatting
-                        foreach ($prop in $call.input.PSObject.Properties) {
-                            $functionArgs[$prop.Name] = $prop.Value
-                        }
+                if ($env:PSAISUITE_DEBUG_ANTHROPIC -eq '1') {
+                    Write-Host "Anthropic stop_reason: $($response.stop_reason)"
+                    if ($response.content) {
+                        Write-Host "Anthropic response content: $($response.content | ConvertTo-Json -Depth 10)"
                     }
+                }
 
-                    try {
-                        if (Get-Command $functionName -ErrorAction SilentlyContinue) {
-                            $result = & $functionName @functionArgs
-                        }
-                        else {
-                            $result = "Error: Function $functionName not found"
-                        }
-                    }
-                    catch {
-                        $result = "Error: $($_.Exception.Message)"
-                    }
+                # Thinking counts against max_tokens, even when its text is hidden.
+                # A truncated response can also contain incomplete tool arguments;
+                # do not execute tools or return partial code as a finished answer.
+                if ($response.stop_reason -eq 'max_tokens') {
+                    Write-AgentActivity -Activity $activity -Message "Stopped: output token limit reached (max_tokens=$($body.max_tokens), including thinking)" -Completed
+                    return "Anthropic response exceeded the output token limit (max_tokens=$($body.max_tokens), including thinking). The response is incomplete; no tool calls from this response were executed."
+                }
 
+                if (!$response.content) {
+                    Write-AgentActivity -Activity $activity -Message 'Request failed: no content in response' -Completed
+                    return "No content in response from API."
+                }
+
+                $toolUses = @($response.content | Where-Object { $_.type -eq 'tool_use' })
+                if ($toolUses.Count -gt 0) {
+                    Write-AgentActivity -Activity $activity -Message "Model requested $($toolUses.Count) tool call(s)"
                     $body.messages += @{
-                        role    = 'user'
-                        content = @(
-                            @{
-                                type        = 'tool_result'
-                                tool_use_id = $call.id
-                                content     = $result | Out-String
-                            }
-                        )
+                        role    = 'assistant'
+                        content = $response.content
                     }
-                }
-            }
-            else {
-                $textBlocks = $response.content | Where-Object { $_.type -eq 'text' }
-                if ($textBlocks) {
-                    $text = ($textBlocks | ForEach-Object { $_.text }) -join ''
-                    if ($EffortLevel -or $SpeedLevel) {
-                        return [PSCustomObject]@{
-                            Text                 = $text
-                            MaxIterations        = $MaxIterations
-                            RequestedEffortLevel = $EffortLevel
-                            RequestedSpeedLevel  = $SpeedLevel
-                            ReasoningEffort      = if ($response.usage.output_tokens_details) { $EffortLevel } else { $null }
-                            ServiceTier          = $response.usage.service_tier
+
+                    foreach ($call in $toolUses) {
+                        $functionName = $call.name
+                        $toolStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                        Write-AgentActivity -Activity $activity -Message "Tool started: $functionName"
+                        $functionArgs = @{}
+                        if ($call.input) {
+                            # Convert PSObject from JSON response to hashtable for splatting
+                            foreach ($prop in $call.input.PSObject.Properties) {
+                                $functionArgs[$prop.Name] = $prop.Value
+                            }
+                        }
+
+                        $toolFailed = $false
+                        try {
+                            if (Get-Command $functionName -ErrorAction SilentlyContinue) {
+                                $result = @(& $functionName @functionArgs 2>&1)
+                                $toolFailed = @($result | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count -gt 0
+                            }
+                            else {
+                                $toolFailed = $true
+                                $result = "Error: Function $functionName not found"
+                            }
+                        }
+                        catch {
+                            $toolFailed = $true
+                            $result = "Error: $($_.Exception.Message)"
+                        }
+
+                        $toolStopwatch.Stop()
+                        $toolStatus = if ($toolFailed) { 'Tool failed' } else { 'Tool completed' }
+                        Write-AgentActivity -Activity $activity -Message "$toolStatus`: $functionName ($($toolStopwatch.ElapsedMilliseconds) ms)"
+
+                        $body.messages += @{
+                            role    = 'user'
+                            content = @(
+                                @{
+                                    type        = 'tool_result'
+                                    tool_use_id = $call.id
+                                    content     = $result | Out-String
+                                }
+                            )
                         }
                     }
-                    return $text
                 }
-                return "No text content in response."
+                else {
+                    $textBlocks = $response.content | Where-Object { $_.type -eq 'text' }
+                    if ($textBlocks) {
+                        $text = ($textBlocks | ForEach-Object { $_.text }) -join ''
+                        Write-AgentActivity -Activity $activity -Message 'Response completed' -Completed
+                        if ($EffortLevel -or $SpeedLevel) {
+                            return [PSCustomObject]@{
+                                Text                 = $text
+                                MaxIterations        = $MaxIterations
+                                RequestedEffortLevel = $EffortLevel
+                                RequestedSpeedLevel  = $SpeedLevel
+                                ReasoningEffort      = if ($response.usage.output_tokens_details) { $EffortLevel } else { $null }
+                                ServiceTier          = $response.usage.service_tier
+                            }
+                        }
+                        return $text
+                    }
+                    Write-AgentActivity -Activity $activity -Message 'Request failed: no text in response' -Completed
+                    return "No text content in response."
+                }
             }
-        }
-        catch {
-            $statusCode = $_.Exception.Response.StatusCode.value__
-            $errorMessage = $_.ErrorDetails.Message
-            Write-Error "Anthropic API Error (HTTP $statusCode): $errorMessage"
-            return "Error calling Anthropic API: $($_.Exception.Message)"
+            catch {
+                Write-AgentActivity -Activity $activity -Message 'Request failed' -Completed
+                $statusCode = $_.Exception.Response.StatusCode.value__
+                $errorMessage = $_.ErrorDetails.Message
+                Write-Error "Anthropic API Error (HTTP $statusCode): $errorMessage"
+                return "Error calling Anthropic API: $($_.Exception.Message)"
+            }
+
+            $iteration++
         }
 
-        $iteration++
+        Write-AgentActivity -Activity $activity -Message 'Stopped: maximum iterations reached' -Completed
+        return "Maximum iterations reached without completing the response after $MaxIterations iterations."
     }
-
-    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
+    finally {
+        Write-AgentActivity -Activity $activity -Message 'Request stopped' -Completed
+    }
 }

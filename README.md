@@ -208,6 +208,20 @@ New-AgentHarness -Model 'openai:gpt-5.6-luna' -Tools Get-Date -SystemPrompt 'Use
 `-Model` supports the same provider and model tab completion as
 `Invoke-ChatCompletion`.
 
+OpenAI and Anthropic show the same progress display during a request: the
+model, current round, waiting status, tool starts and completions, elapsed time,
+and failures. Add `-Verbose` to retain these updates as an activity log:
+
+```powershell
+New-AgentHarness 'What time is it?' -Model anthropic:claude-sonnet-5-5 -Tools Get-Date -Verbose
+```
+
+This also works in interactive mode and with `Invoke-ChatCompletion`. Progress
+and verbose messages are separate from the response, so assigning or piping
+the answer keeps it clean. Set `$ProgressPreference = 'SilentlyContinue'` to
+hide the progress display. Updates occur at request and tool boundaries;
+the waiting status is not a live thinking feed or a completion percentage.
+
 To create an editable object without starting a request or reading input, use
 `-PassThru`. Existing object-construction calls should add this switch:
 
@@ -247,6 +261,13 @@ For the Anthropic file-reading and script-generation regression, run:
 
 ```powershell
 pwsh -NoProfile -File ./__tests__/Test-AnthropicAgentHarnessLive.ps1
+```
+
+To verify progress during real OpenAI and Anthropic requests, including tool
+failures, iteration limits, and API failures:
+
+```powershell
+pwsh -NoProfile -File ./__tests__/Test-AgentProgressLive.ps1
 ```
 
 ### OpenAI instructions and tool workflows
