@@ -28,7 +28,8 @@
     
 .NOTES
     Requires the AnthropicKey environment variable to be set with a valid API key.
-    Uses a fixed max_tokens value of 1024.
+    Uses a max_tokens value of 4096, shared by thinking and response text.
+    Reports truncated responses before executing any incomplete tool calls.
     Returns content from the 'text' field in the response.
     API Reference: https://docs.anthropic.com/claude/reference/getting-started-with-the-api
 #>
@@ -69,7 +70,7 @@ function Invoke-AnthropicProvider {
     
     $body = @{
         'model'      = $ModelName
-        'max_tokens' = 1024  # Hard-coded for Anthropic
+        'max_tokens' = 4096  # Includes thinking as well as response text
     }
 
     if ($EffortLevel) {
@@ -132,6 +133,13 @@ function Invoke-AnthropicProvider {
                 if ($response.content) {
                     Write-Host "Anthropic response content: $($response.content | ConvertTo-Json -Depth 10)"
                 }
+            }
+
+            # Thinking counts against max_tokens, even when its text is hidden.
+            # A truncated response can also contain incomplete tool arguments;
+            # do not execute tools or return partial code as a finished answer.
+            if ($response.stop_reason -eq 'max_tokens') {
+                return "Anthropic response exceeded the output token limit (max_tokens=$($body.max_tokens), including thinking). The response is incomplete; no tool calls from this response were executed."
             }
 
             if (!$response.content) {

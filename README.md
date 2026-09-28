@@ -224,6 +224,11 @@ Tools can be command names or the tool schemas accepted by
 and five tool-calling rounds. Provider credentials, model overrides such as
 `PSAISUITE_DEFAULT_MODEL`, and provider support follow `Invoke-ChatCompletion`.
 
+Starting in **v0.9.1**, Anthropic requests allow up to 4,096 output tokens per response, including
+thinking. If that limit is reached, the provider reports truncation and does
+not execute tool calls from the incomplete response. This is separate from
+`MaxIterations`, which limits the number of model/tool rounds.
+
 `-PassThru` cannot be combined with `-Prompt`. Creating the object with
 `-PassThru` makes no model request. Each `GetResponse` call uses the
 current properties and starts a fresh conversation; it does not retain earlier
@@ -236,6 +241,12 @@ completion using your configured credentials, run the explicit live test:
 
 ```powershell
 pwsh -NoProfile -File ./__tests__/Test-AgentHarnessLive.ps1
+```
+
+For the Anthropic file-reading and script-generation regression, run:
+
+```powershell
+pwsh -NoProfile -File ./__tests__/Test-AnthropicAgentHarnessLive.ps1
 ```
 
 ### OpenAI instructions and tool workflows
