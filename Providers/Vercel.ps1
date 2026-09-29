@@ -59,6 +59,8 @@ function Invoke-VercelProvider {
     }
 
     if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        $activity = New-AgentActivity -Provider 'Vercel' -Model $ModelName -MaxIterations $MaxIterations
+        Write-AgentActivity -Activity $activity -Message 'Request failed: Vercel AI Gateway credential is missing' -Completed
         Write-Error 'Please set the AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN environment variable with a valid Vercel AI Gateway credential.'
         return
     }
@@ -96,110 +98,137 @@ function Invoke-VercelProvider {
 
     $uri = 'https://ai-gateway.vercel.sh/v1/chat/completions'
     $iteration = 0
+    $activity = New-AgentActivity -Provider 'Vercel' -Model $ModelName -MaxIterations $MaxIterations
 
-    while ($iteration -lt $MaxIterations) {
-        $params = @{
-            Uri     = $uri
-            Method  = 'POST'
-            Headers = $headers
-            Body    = $body | ConvertTo-Json -Depth 20
-        }
-
-        try {
-            $response = Invoke-RestMethod @params
-        }
-        catch {
-            $statusCode = $null
-            if ($_.Exception.Response) {
-                $statusCode = $_.Exception.Response.StatusCode.value__
+    try {
+        while ($iteration -lt $MaxIterations) {
+            Write-AgentActivity -Activity $activity -Message 'Waiting for response' -Round ($iteration + 1)
+            $params = @{
+                Uri     = $uri
+                Method  = 'POST'
+                Headers = $headers
+                Body    = $body | ConvertTo-Json -Depth 20
             }
 
-            $errorMessage = $_.ErrorDetails.Message
-            if ([string]::IsNullOrWhiteSpace($errorMessage)) {
-                $errorMessage = $_.Exception.Message
+            try {
+                $response = Invoke-RestMethod @params
+            }
+            catch {
+                $statusCode = $null
+                if ($_.Exception.Response) {
+                    $statusCode = $_.Exception.Response.StatusCode.value__
+                }
+
+                $errorMessage = $_.ErrorDetails.Message
+                if ([string]::IsNullOrWhiteSpace($errorMessage)) {
+                    $errorMessage = $_.Exception.Message
+                }
+
+                Write-AgentActivity -Activity $activity -Message 'Request failed' -Completed
+
+                if ($statusCode) {
+                    Write-Error "Vercel AI Gateway API Error (HTTP $statusCode): $errorMessage"
+                }
+                else {
+                    Write-Error "Vercel AI Gateway API Error: $errorMessage"
+                }
+
+                return "Error calling Vercel AI Gateway: $($_.Exception.Message)"
             }
 
-            if ($statusCode) {
-                Write-Error "Vercel AI Gateway API Error (HTTP $statusCode): $errorMessage"
-            }
-            else {
+            if ($response.error) {
+                $errorMessage = if ($response.error.message) { $response.error.message } else { $response.error | Out-String }
+                Write-AgentActivity -Activity $activity -Message 'Request failed: provider returned an error' -Completed
                 Write-Error "Vercel AI Gateway API Error: $errorMessage"
+                return "Error: $errorMessage"
             }
 
-            return "Error calling Vercel AI Gateway: $($_.Exception.Message)"
-        }
+            if (-not $response.choices -or @($response.choices).Count -eq 0) {
+                Write-AgentActivity -Activity $activity -Message 'Request failed: no choices in response' -Completed
+                return 'No choices in response from Vercel AI Gateway.'
+            }
 
-        if ($response.error) {
-            $errorMessage = if ($response.error.message) { $response.error.message } else { $response.error | Out-String }
-            Write-Error "Vercel AI Gateway API Error: $errorMessage"
-            return "Error: $errorMessage"
-        }
+            $assistantMessage = $response.choices[0].message
+            $toolCalls = @()
+            if ($assistantMessage.tool_calls) {
+                $toolCalls = @($assistantMessage.tool_calls)
+            }
 
-        if (-not $response.choices -or @($response.choices).Count -eq 0) {
-            return 'No choices in response from Vercel AI Gateway.'
-        }
+            if ($toolCalls.Count -gt 0) {
+                Write-AgentActivity -Activity $activity -Message "Model requested $($toolCalls.Count) tool call(s)"
+                $body.messages += $assistantMessage
 
-        $assistantMessage = $response.choices[0].message
-        $toolCalls = @()
-        if ($assistantMessage.tool_calls) {
-            $toolCalls = @($assistantMessage.tool_calls)
-        }
+                foreach ($call in $toolCalls) {
+                    $functionName = $call.function.name
+                    $functionArgs = @{}
+                    $toolStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                    Write-AgentActivity -Activity $activity -Message "Tool started: $functionName"
 
-        if ($toolCalls.Count -gt 0) {
-            $body.messages += $assistantMessage
+                    if ($call.function.arguments) {
+                        try {
+                            $functionArgs = $call.function.arguments | ConvertFrom-Json -AsHashtable
+                        }
+                        catch {
+                            $functionArgs = @{}
+                        }
+                    }
 
-            foreach ($call in $toolCalls) {
-                $functionName = $call.function.name
-                $functionArgs = @{}
-
-                if ($call.function.arguments) {
+                    $toolFailed = $false
                     try {
-                        $functionArgs = $call.function.arguments | ConvertFrom-Json -AsHashtable
+                        if (Get-Command Invoke-OpenAITool -ErrorAction SilentlyContinue) {
+                            $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
+                            $toolFailed = ([string]$result) -match '^Error(?: executing|:)'
+                        }
+                        elseif (Get-Command $functionName -ErrorAction SilentlyContinue) {
+                            $toolResult = @(& $functionName @functionArgs 2>&1)
+                            $toolFailed = @($toolResult | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count -gt 0
+                            $result = $toolResult | Out-String
+                        }
+                        else {
+                            $toolFailed = $true
+                            $result = "Error: Function $functionName not found"
+                        }
                     }
                     catch {
-                        $functionArgs = @{}
+                        $toolFailed = $true
+                        $result = "Error executing $functionName`: $($_.Exception.Message)"
+                    }
+
+                    $toolStopwatch.Stop()
+                    $toolStatus = if ($toolFailed) { 'Tool failed' } else { 'Tool completed' }
+                    Write-AgentActivity -Activity $activity -Message "$toolStatus`: $functionName ($($toolStopwatch.ElapsedMilliseconds) ms)"
+
+                    $body.messages += @{
+                        role         = 'tool'
+                        tool_call_id = $call.id
+                        content      = [string]$result
                     }
                 }
 
-                try {
-                    if (Get-Command Invoke-OpenAITool -ErrorAction SilentlyContinue) {
-                        $result = Invoke-OpenAITool -FunctionName $functionName -FunctionArgs $functionArgs
-                    }
-                    elseif (Get-Command $functionName -ErrorAction SilentlyContinue) {
-                        $result = & $functionName @functionArgs | Out-String
-                    }
-                    else {
-                        $result = "Error: Function $functionName not found"
-                    }
-                }
-                catch {
-                    $result = "Error executing $functionName`: $($_.Exception.Message)"
-                }
-
-                $body.messages += @{
-                    role         = 'tool'
-                    tool_call_id = $call.id
-                    content      = [string]$result
-                }
+                $iteration++
+                continue
             }
 
-            $iteration++
-            continue
+            $content = $assistantMessage.content
+            if ($content -is [array]) {
+                $content = ($content | ForEach-Object {
+                        if ($_.text) { $_.text } else { [string]$_ }
+                    }) -join ''
+            }
+
+            if ([string]::IsNullOrWhiteSpace([string]$content)) {
+                Write-AgentActivity -Activity $activity -Message 'Request failed: no text in response' -Completed
+                return 'No text content in response from Vercel AI Gateway.'
+            }
+
+            Write-AgentActivity -Activity $activity -Message 'Response completed' -Completed
+            return [string]$content
         }
 
-        $content = $assistantMessage.content
-        if ($content -is [array]) {
-            $content = ($content | ForEach-Object {
-                    if ($_.text) { $_.text } else { [string]$_ }
-                }) -join ''
-        }
-
-        if ([string]::IsNullOrWhiteSpace([string]$content)) {
-            return 'No text content in response from Vercel AI Gateway.'
-        }
-
-        return [string]$content
+        Write-AgentActivity -Activity $activity -Message 'Stopped: maximum iterations reached' -Completed
+        return "Maximum iterations reached without completing the response after $MaxIterations iterations."
     }
-
-    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
+    finally {
+        Write-AgentActivity -Activity $activity -Message 'Request stopped' -Completed
+    }
 }

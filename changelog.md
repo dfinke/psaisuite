@@ -1,3 +1,19 @@
+# v0.9.1
+
+- Unified OpenAI, Anthropic, and Vercel progress reporting for request rounds, waiting,
+  tool starts/completions, elapsed time, and failures. `-Verbose` retains the
+  activity log without adding messages to the returned answer.
+- Clear progress when a request completes or stops, and report iteration/output
+  limits explicitly. Progress no longer treats the round limit as a percentage.
+- Added live progress checks for OpenAI, Anthropic, and Vercel, including real tool failures,
+  iteration limits, API failures, and response-stream separation.
+- Increased Anthropic's per-response output limit from 1,024 to 4,096 tokens
+  to leave room for thinking and the final answer during agent tool workflows.
+- Report Anthropic output-token truncation explicitly instead of returning
+  `No text content in response.` or executing potentially incomplete tool calls.
+- Added a live Anthropic regression test that reads CSV files, identifies the
+  top customer, and checks the returned PowerShell script for syntax errors.
+
 # v0.9.0
 
 - Added provider/model tab completion to `New-AgentHarness -Model`.

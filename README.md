@@ -177,7 +177,8 @@ can run reliably even when a model supplies placeholder arguments.
 
 ### Build a custom agent harness
 
-Updated in **v0.9.0** with prompt execution and an interactive mode.
+Introduced in **v0.9.0** with prompt execution and an interactive mode; updated
+in **v0.9.1** with shared provider progress and Anthropic token handling.
 **Migration:** calls that previously returned a harness object must now add
 `-PassThru`; omitting `-Prompt` starts an interactive conversation.
 For the original object-based walkthrough, see
@@ -208,6 +209,20 @@ New-AgentHarness -Model 'openai:gpt-5.6-luna' -Tools Get-Date -SystemPrompt 'Use
 `-Model` supports the same provider and model tab completion as
 `Invoke-ChatCompletion`.
 
+OpenAI, Anthropic, and Vercel show the same progress display during a request:
+the model, current round, waiting status, tool starts and completions, elapsed
+time, and failures. Add `-Verbose` to retain these updates as an activity log:
+
+```powershell
+New-AgentHarness 'What time is it?' -Model anthropic:claude-sonnet-5-5 -Tools Get-Date -Verbose
+```
+
+This also works in interactive mode and with `Invoke-ChatCompletion`. Progress
+and verbose messages are separate from the response, so assigning or piping
+the answer keeps it clean. Set `$ProgressPreference = 'SilentlyContinue'` to
+hide the progress display. Updates occur at request and tool boundaries;
+the waiting status is not a live thinking feed or a completion percentage.
+
 To create an editable object without starting a request or reading input, use
 `-PassThru`. Existing object-construction calls should add this switch:
 
@@ -224,6 +239,11 @@ Tools can be command names or the tool schemas accepted by
 and five tool-calling rounds. Provider credentials, model overrides such as
 `PSAISUITE_DEFAULT_MODEL`, and provider support follow `Invoke-ChatCompletion`.
 
+Starting in **v0.9.1**, Anthropic requests allow up to 4,096 output tokens per response, including
+thinking. If that limit is reached, the provider reports truncation and does
+not execute tool calls from the incomplete response. This is separate from
+`MaxIterations`, which limits the number of model/tool rounds.
+
 `-PassThru` cannot be combined with `-Prompt`. Creating the object with
 `-PassThru` makes no model request. Each `GetResponse` call uses the
 current properties and starts a fresh conversation; it does not retain earlier
@@ -236,6 +256,19 @@ completion using your configured credentials, run the explicit live test:
 
 ```powershell
 pwsh -NoProfile -File ./__tests__/Test-AgentHarnessLive.ps1
+```
+
+For the Anthropic file-reading and script-generation regression, run:
+
+```powershell
+pwsh -NoProfile -File ./__tests__/Test-AnthropicAgentHarnessLive.ps1
+```
+
+To verify progress during real OpenAI, Anthropic, and Vercel requests, including tool
+failures, iteration limits, and API failures:
+
+```powershell
+pwsh -NoProfile -File ./__tests__/Test-AgentProgressLive.ps1
 ```
 
 ### OpenAI instructions and tool workflows
@@ -254,7 +287,7 @@ $messages = @(
 Invoke-ChatCompletion -Messages $messages -Model 'openai:gpt-5.6'
 ```
 
-For OpenAI and Anthropic tool workflows, `-MaxIterations` controls the maximum
+For OpenAI, Anthropic, and Vercel tool workflows, `-MaxIterations` controls the maximum
 number of tool-calling rounds and defaults to 5:
 
 ```powershell
