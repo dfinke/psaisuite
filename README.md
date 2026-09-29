@@ -177,7 +177,8 @@ can run reliably even when a model supplies placeholder arguments.
 
 ### Build a custom agent harness
 
-Updated in **v0.9.0** with prompt execution and an interactive mode.
+Introduced in **v0.9.0** with prompt execution and an interactive mode; updated
+in **v0.9.1** with shared provider progress and Anthropic token handling.
 **Migration:** calls that previously returned a harness object must now add
 `-PassThru`; omitting `-Prompt` starts an interactive conversation.
 For the original object-based walkthrough, see
@@ -286,7 +287,7 @@ $messages = @(
 Invoke-ChatCompletion -Messages $messages -Model 'openai:gpt-5.6'
 ```
 
-For OpenAI and Anthropic tool workflows, `-MaxIterations` controls the maximum
+For OpenAI, Anthropic, and Vercel tool workflows, `-MaxIterations` controls the maximum
 number of tool-calling rounds and defaults to 5:
 
 ```powershell
