@@ -9,8 +9,8 @@ function New-AgentHarness {
     retains user messages and final assistant replies for follow-up turns.
     Enter exit, quit, or an empty line to end the interactive conversation.
     Use PassThru to return an editable harness without starting a conversation.
-    OpenAI and Anthropic show request/tool progress while running. Add Verbose
-    to retain the activity log. Progress is separate from the returned answer.
+    OpenAI, Anthropic, and Vercel show request/tool progress while running.
+    Add Verbose to retain the activity log. Progress is separate from the answer.
 
     .PARAMETER Prompt
     The prompt to run immediately, including any tool calls needed to answer it.

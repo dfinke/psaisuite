@@ -2,7 +2,7 @@
 # Run: pwsh -NoProfile -File ./__tests__/Test-AgentProgressLive.ps1
 [CmdletBinding()]
 param(
-    [string[]]$Models = @('openai:gpt-6-luna', 'anthropic:claude-sonnet-5-5'),
+    [string[]]$Models = @('openai:gpt-6-luna', 'anthropic:claude-sonnet-5-5', 'vercel:openai/gpt-6-luna'),
     [ValidateSet('Success', 'ToolFailure', 'Limit', 'ApiFailure')]
     [string[]]$Cases = @('Success', 'ToolFailure', 'Limit', 'ApiFailure')
 )
@@ -45,7 +45,8 @@ $runCase = {
     }
     if ($Mode -eq 'Limit') { $options.MaxIterations = 1 }
     if ($Mode -eq 'ApiFailure') {
-        $options.Model = ($Model -split ':', 2)[0] + ':psaisuite-missing-model-live-test'
+        $provider = ($Model -split ':', 2)[0]
+        $options.Model = if ($provider -eq 'vercel') { 'vercel:openai/psaisuite-missing-model-live-test' } else { "$provider`:psaisuite-missing-model-live-test" }
     }
     $errorCaught = $false
     $response = @()
@@ -111,7 +112,7 @@ foreach ($model in $Models) {
                 }
                 'ApiFailure' {
                     if (-not $result.ErrorCaught -or -not ($statuses[-1] -match 'Request failed')) {
-                        throw "$model did not report the API failure."
+                        throw "$model did not report the API failure (caught=$($result.ErrorCaught); statuses=$($statuses -join '; '))."
                     }
                 }
             }

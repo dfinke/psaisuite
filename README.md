@@ -208,9 +208,9 @@ New-AgentHarness -Model 'openai:gpt-5.6-luna' -Tools Get-Date -SystemPrompt 'Use
 `-Model` supports the same provider and model tab completion as
 `Invoke-ChatCompletion`.
 
-OpenAI and Anthropic show the same progress display during a request: the
-model, current round, waiting status, tool starts and completions, elapsed time,
-and failures. Add `-Verbose` to retain these updates as an activity log:
+OpenAI, Anthropic, and Vercel show the same progress display during a request:
+the model, current round, waiting status, tool starts and completions, elapsed
+time, and failures. Add `-Verbose` to retain these updates as an activity log:
 
 ```powershell
 New-AgentHarness 'What time is it?' -Model anthropic:claude-sonnet-5-5 -Tools Get-Date -Verbose
@@ -263,7 +263,7 @@ For the Anthropic file-reading and script-generation regression, run:
 pwsh -NoProfile -File ./__tests__/Test-AnthropicAgentHarnessLive.ps1
 ```
 
-To verify progress during real OpenAI and Anthropic requests, including tool
+To verify progress during real OpenAI, Anthropic, and Vercel requests, including tool
 failures, iteration limits, and API failures:
 
 ```powershell
