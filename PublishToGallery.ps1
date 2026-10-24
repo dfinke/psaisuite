@@ -1,6 +1,6 @@
 $p = @{
     Name        = "PSAISuite"
-    NuGetApiKey = $NuGetApiKey
+    NuGetApiKey = $env:NugetAPIKey
 }
 
 Publish-Module @p
