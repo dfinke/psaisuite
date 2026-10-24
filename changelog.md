@@ -1,5 +1,15 @@
 # Unreleased
 
+- Default DeepSeek file tools to the starting directory, with an explicit
+  ToolRoot option and pinned harness scope. Empty folders no longer invite
+  searches elsewhere; raw results expose ToolRoot and IterationsUsed.
+- Separate a reusable local ToolPolicy from model reasoning. Resource budgets
+  can be raised or disabled; BeforeInvoke can allow or deny custom tool calls.
+- Enforce built-in file-tool boundaries across relative/absolute paths,
+  aliases, wildcard patterns, PSDrives, and links/junctions; label limited output.
+- Added real filesystem boundary/policy checks and live empty-folder and
+  pinned-root regressions.
+
 - Moved DeepSeek to the Responses API, with PowerShell command/schema tools,
   bounded tool rounds, effort controls, and shared progress reporting.
 - Preserve DeepSeek reasoning and tool history across interactive harness turns;

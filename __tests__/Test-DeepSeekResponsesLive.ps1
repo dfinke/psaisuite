@@ -86,12 +86,35 @@ try {
     New-Item -ItemType Directory -Path $fixturePath | Out-Null
     Set-Content -LiteralPath $fixtureFile -Value $global:deepSeekProbeValue
     try {
-        $fileResult = Invoke-ChatCompletion -Model $Model -Messages "List files in '$fixturePath' using Get-ChildItem, then read value.txt with Get-Content. Return only the contents." -Tools Get-ChildItem, Get-Content -EffortLevel none -Raw
+        $fileResult = Invoke-ChatCompletion -Model $Model -Messages "List files in '$fixturePath' using Get-ChildItem, then read value.txt with Get-Content. Return only the contents." -Tools Get-ChildItem, Get-Content -ToolRoot $fixturePath -EffortLevel none -Raw
         $calledNames = @($fileResult.Conversation | Where-Object type -eq 'function_call' | ForEach-Object name)
         if ($fileResult.Response.Trim() -ne $global:deepSeekProbeValue -or 'Get-ChildItem' -notin $calledNames -or 'Get-Content' -notin $calledNames) {
             throw 'Built-in file listing and reading failed.'
         }
         Write-Output 'PASS: real Get-ChildItem and Get-Content calls read the generated file.'
+
+        $emptyPath = Join-Path $fixturePath 'empty'
+        New-Item -ItemType Directory -Path $emptyPath | Out-Null
+        try {
+            Push-Location -LiteralPath $emptyPath
+            try {
+                $emptyResult = Invoke-ChatCompletion -Model $Model -Messages 'Read the files and summarize them.' -Tools Get-ChildItem, Get-Content, Get-Date -EffortLevel none -Raw
+                $pinned = New-AgentHarness -Model $Model -Tools Get-ChildItem, Get-Content -PassThru
+            }
+            finally { Pop-Location }
+            if ($emptyResult.ToolRoot -ne $emptyPath -or $emptyResult.Response.Contains($global:deepSeekProbeValue) -or
+                $emptyResult.Response -notmatch '(?i)empty|no files|no matching|nothing to|no .*files') {
+                throw 'An empty starting directory was not handled within its default boundary.'
+            }
+            Write-Output "PASS: empty starting folder stopped within $($emptyResult.IterationsUsed)/5 requests without reading its sibling file."
+            $pinnedResult = $pinned.GetResponse('Read the files and summarize them.')
+            if ($pinned.ToolRoot -ne $emptyPath -or $pinnedResult.Contains($global:deepSeekProbeValue) -or
+                $pinnedResult -notmatch '(?i)empty|no files|no matching|nothing to|no .*files') {
+                throw 'Harness root changed when invoked from a different directory.'
+            }
+            Write-Output 'PASS: harness keeps its starting boundary after the caller changes directory.'
+        }
+        finally { Remove-Item -LiteralPath $emptyPath }
     }
     finally {
         Remove-Item -LiteralPath $fixtureFile

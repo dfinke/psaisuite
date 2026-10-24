@@ -46,6 +46,60 @@ Only the supplied tool names may run. Malformed JSON, unknown arguments,
 missing required arguments, and incomplete PowerShell parameter sets are
 returned as tool errors without executing the command.
 
+### Directory scope and execution policy
+
+File tools default to the directory where you start the request. An empty
+folder produces an empty result; it does not authorize searching elsewhere.
+Choose another directory explicitly when needed:
+
+```powershell
+New-AgentHarness 'Read the files and summarize them.' `
+    -Model deepseek:deepseek-flash -Tools Get-ChildItem, Get-Content `
+    -ToolRoot 'D:\data\sales'
+```
+
+The boundary is enforced in the local tool runner for the built-in
+`Get-ChildItem` and `Get-Content` commands and their aliases. Relative paths
+resolve under ToolRoot. Paths outside it, other PowerShell providers, and
+symlinks/junctions are rejected. Recursion is supported in trees without links.
+This does not sandbox arbitrary custom functions, which retain the session's
+permissions. Other providers currently reject ToolRoot and ToolPolicy rather
+than silently suggesting they enforce the same boundary.
+
+Policy is separate from model reasoning. DeepSeek is the first adapter wired
+to the reusable tool policy; new models use the same execution interface.
+You can tune the defaults or add a permission callback for your own tools:
+
+```powershell
+$policy = @{
+    MaxReadBytes = 20MB
+    MaxOutputCharacters = 0 # Unlimited; the caller decides the budget.
+    BeforeInvoke = {
+        param($call)
+        # Receives Name, Arguments, resolved CommandInfo, and Root.
+        $call.Command.Name -ne 'Remove-Item'
+    }
+}
+New-AgentHarness 'Read the files.' -Model deepseek:deepseek-flash `
+    -Tools Get-ChildItem, Get-Content -ToolRoot 'D:\data' -ToolPolicy $policy
+```
+
+BeforeInvoke must return exactly one Boolean decision; false or an exception
+denies the call. It can govern custom tools too. The model does not receive or
+modify this callback. Tool registration still determines which tools exist.
+
+| Option | Default | Meaning |
+|---|---:|---|
+| MaxReadBytes | 1 MiB | Combined size of files selected by one Get-Content call |
+| MaxOutputCharacters | 20,000 | Text returned to the model per tool result |
+| MaxListedItems | 1,000 | Items returned by one directory listing |
+| MaxScanEntries | 4,096 | Entries inspected before a recursive listing |
+| MaxFilePaths | 100 | Paths selected by one file-tool call |
+
+Each numeric option accepts zero for unlimited. Truncation is labelled in the
+tool result. Get-Content -Wait, alternate data streams, and wildcard directory
+segments require a purpose-built tool; leaf filename wildcards are supported.
+
 Custom functions work too:
 
 ```powershell
@@ -95,13 +149,17 @@ streaming live thinking or answer tokens.
 ```powershell
 $first = Invoke-ChatCompletion 'What is the date?' -Model deepseek:deepseek-flash -Tools Get-Date -Raw
 $next = @($first.Conversation) + @(@{ role = 'user'; content = 'What year is that?' })
-Invoke-ChatCompletion -Messages $next -Model deepseek:deepseek-flash -Tools Get-Date
+Invoke-ChatCompletion -Messages $next -Model deepseek:deepseek-flash -Tools Get-Date -ToolRoot $first.ToolRoot
 ```
 
 `-Raw` adds `Conversation`, the replayable Responses input items. Keep the
 history with the same model and tool definitions. This includes reasoning and
 tool results; treat it as conversation data, rather than a display transcript.
 The implementation does not use `previous_response_id` or server-side storage.
+Raw results also include ToolRoot and IterationsUsed. Harnesses pin their
+starting root across interactive turns and GetResponse calls; caller directory
+changes do not silently expand the scope. Keep any custom ToolPolicy with the
+conversation when continuing it manually.
 
 ## Validation
 
@@ -111,6 +169,12 @@ These explicit checks make real API calls using the configured credentials:
 pwsh -NoProfile -File ./__tests__/Test-DeepSeekResponsesLive.ps1
 pwsh -NoProfile -File ./__tests__/Test-AgentHarnessLive.ps1 -Model deepseek:deepseek-flash
 pwsh -NoProfile -File ./__tests__/Test-AgentProgressLive.ps1 -Models deepseek:deepseek-flash
+```
+
+The filesystem/policy checks use real tools and temporary files without API calls:
+
+```powershell
+pwsh -NoProfile -File ./__tests__/Test-AgentFileBoundary.ps1
 ```
 
 References: [Responses API](https://api-docs.deepseek.com/guides/responses_api/),

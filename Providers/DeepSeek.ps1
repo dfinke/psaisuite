@@ -15,6 +15,12 @@ function Invoke-DeepSeekProvider {
     .PARAMETER EffortLevel
     Reasoning effort. none disables thinking; compatible values map to low,
     high, or max according to DeepSeek's documented mapping.
+    .PARAMETER ToolRoot
+    Allowed root for built-in Get-ChildItem and Get-Content tools. Defaults to
+    the current directory. Links and access outside this root are rejected.
+    .PARAMETER ToolPolicy
+    Local execution-policy options: configurable resource limits and an optional
+    BeforeInvoke scriptblock. This policy is never sent to or set by the model.
     .NOTES
     Uses https://api.deepseek.com/responses and the DeepSeekKey environment
     variable. Returns text and conversation metadata to Invoke-ChatCompletion.
@@ -29,12 +35,17 @@ function Invoke-DeepSeekProvider {
         [ValidateRange(1, 100)]
         [int]$MaxIterations = 5,
         [ValidateSet('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')]
-        [string]$EffortLevel
+        [string]$EffortLevel,
+        [ValidateNotNullOrEmpty()]
+        [string]$ToolRoot = (Get-Location).Path,
+        [hashtable]$ToolPolicy
     )
 
     if ([string]::IsNullOrWhiteSpace($env:DeepSeekKey)) {
         throw 'Set the DeepSeekKey environment variable before using DeepSeek.'
     }
+    $executionPolicy = New-AgentToolPolicy -Root $ToolRoot -Options $ToolPolicy
+    $ToolRoot = $executionPolicy.Root
 
     $registeredTools = @{}
     $responseTools = @()
@@ -73,6 +84,7 @@ function Invoke-DeepSeekProvider {
     $instructions = (@($instructionMessages | ForEach-Object {
         ConvertTo-OpenAIInstructionText -Content $_.content
     }) -join "`n`n")
+    $instructions += "`n`nTool execution context: ToolRoot is '$ToolRoot'. Relative file paths resolve there. The file tools can access only this directory and its children. If there are no relevant files, report that result; choosing another root requires the user. Tool-policy denials do not grant permission to expand the scope."
     if ($instructions) { $body.instructions = $instructions }
     if ($responseTools.Count -gt 0) {
         $body.tools = $responseTools
@@ -130,7 +142,7 @@ function Invoke-DeepSeekProvider {
                 foreach ($call in $calls) {
                     $timer = [System.Diagnostics.Stopwatch]::StartNew()
                     Write-AgentActivity -Activity $activity -Message "Tool started: $($call.name)"
-                    $toolResult = Invoke-RegisteredAgentTool -Name $call.name -Arguments $call.arguments -RegisteredTools $registeredTools
+                    $toolResult = Invoke-RegisteredAgentTool -Name $call.name -Arguments $call.arguments -RegisteredTools $registeredTools -Policy $executionPolicy
                     $timer.Stop()
                     $state = if ($toolResult.Failed) { 'Tool failed' } else { 'Tool completed' }
                     Write-AgentActivity -Activity $activity -Message "$($state): $($call.name) ($($timer.ElapsedMilliseconds) ms)"
@@ -147,6 +159,8 @@ function Invoke-DeepSeekProvider {
             return [pscustomobject]@{
                 Text = $text
                 Conversation = @($instructionMessages) + @($body.input)
+                ToolRoot = $ToolRoot
+                IterationsUsed = $round
                 MaxIterations = $MaxIterations
                 RequestedEffortLevel = $EffortLevel
                 ReasoningEffort = $reasoningEffort

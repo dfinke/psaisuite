@@ -31,6 +31,19 @@ The maximum number of tool-calling rounds allowed before the request stops.
 This parameter is supported by OpenAI, Anthropic, DeepSeek, and Vercel and defaults
 to 5.
 
+.PARAMETER ToolRoot
+DeepSeek file-tool boundary, defaulting to the current directory. Applies to
+the built-in Get-ChildItem and Get-Content cmdlets and their aliases. Other
+providers currently reject this parameter. Arbitrary custom functions retain
+the session's permissions; this is not an operating-system sandbox.
+
+.PARAMETER ToolPolicy
+Local tool-execution options, currently supported by DeepSeek. Configure
+MaxReadBytes, MaxOutputCharacters, MaxListedItems, MaxScanEntries, or MaxFilePaths (zero
+means unlimited), or supply BeforeInvoke, a scriptblock receiving a call
+descriptor and returning one Boolean allow/deny decision. The policy is local
+to tool execution and independent of the selected model's reasoning.
+
 .PARAMETER EffortLevel
 The provider reasoning effort level. OpenAI supports all listed values;
 Anthropic supports low, medium, high, xhigh, and max. DeepSeek maps the listed
@@ -111,6 +124,11 @@ function Invoke-ChatCompletion {
         [object]$Context,
 
         [object[]]$Tools,
+
+        [ValidateNotNullOrEmpty()]
+        [string]$ToolRoot,
+
+        [hashtable]$ToolPolicy,
 
         [ValidateRange(1, 100)]
         [int]$MaxIterations = 5,
@@ -198,6 +216,10 @@ function Invoke-ChatCompletion {
             throw "MaxIterations is currently supported only for the OpenAI, Anthropic, DeepSeek, and Vercel providers."
         }
 
+        if ($PSBoundParameters.ContainsKey('ToolRoot') -or $PSBoundParameters.ContainsKey('ToolPolicy')) {
+            if ($provider -ne 'deepseek') { throw 'ToolRoot and ToolPolicy are currently supported only for the DeepSeek provider.' }
+        }
+
         if ($EffortLevel -and $provider -eq 'anthropic' -and @('low', 'medium', 'high', 'xhigh', 'max') -notcontains $EffortLevel) {
             throw "Anthropic supports effort levels: low, medium, high, xhigh, and max."
         }
@@ -228,6 +250,8 @@ function Invoke-ChatCompletion {
         if ($Tools) {
             $functionParams.Tools = $Tools
         }
+        if ($PSBoundParameters.ContainsKey('ToolRoot')) { $functionParams.ToolRoot = $ToolRoot }
+        if ($PSBoundParameters.ContainsKey('ToolPolicy')) { $functionParams.ToolPolicy = $ToolPolicy }
 
         if ($provider -in @('openai', 'anthropic', 'deepseek', 'vercel')) {
             $functionParams.MaxIterations = $MaxIterations
@@ -269,6 +293,8 @@ function Invoke-ChatCompletion {
         if ($providerMetadata) {
             if ($provider -eq 'deepseek' -and $providerMetadata.PSObject.Properties['Conversation']) {
                 $responseObject | Add-Member -MemberType NoteProperty -Name 'Conversation' -Value $providerMetadata.Conversation
+                $responseObject | Add-Member -MemberType NoteProperty -Name 'ToolRoot' -Value $providerMetadata.ToolRoot
+                $responseObject | Add-Member -MemberType NoteProperty -Name 'IterationsUsed' -Value $providerMetadata.IterationsUsed
             }
             $responseObject | Add-Member -MemberType NoteProperty -Name 'MaxIterations' -Value $providerMetadata.MaxIterations
             $responseObject | Add-Member -MemberType NoteProperty -Name 'EffortLevel' -Value $providerMetadata.RequestedEffortLevel
