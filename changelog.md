@@ -1,3 +1,11 @@
+# Unreleased
+
+- Keep model requests independent of progress-rendering failures in custom
+  PowerShell hosts. Cancellation still stops the request, and `-Verbose`
+  reports when the host cannot display progress.
+- Added offline host integration checks for normal rendering, unsupported
+  progress displays, host cancellation, and cleanup when a pipeline is stopped.
+
 # v0.9.1
 
 - Unified OpenAI, Anthropic, and Vercel progress reporting for request rounds, waiting,
