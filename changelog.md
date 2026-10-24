@@ -1,30 +1,29 @@
-# Unreleased
+# v0.10.0
 
-- Default DeepSeek file tools to the starting directory, with an explicit
-  ToolRoot option and pinned harness scope. Empty folders no longer invite
-  searches elsewhere; raw results expose ToolRoot and IterationsUsed.
-- Separate a reusable local ToolPolicy from model reasoning. Resource budgets
-  can be raised or disabled; BeforeInvoke can allow or deny custom tool calls.
+- Moved DeepSeek to the Responses API with PowerShell command/schema tools,
+  bounded requests, effort controls, and shared progress reporting.
+- Preserve DeepSeek reasoning and tool history across interactive harness turns.
+  Raw completions expose Conversation for explicit stateless continuation,
+  along with ToolRoot and IterationsUsed.
+- Default DeepSeek's built-in file tools to the starting directory. ToolRoot
+  selects another directory and remains pinned for the lifetime of a harness.
+  Empty folders no longer lead to reading unrelated locations.
+- Add a reusable local ToolPolicy, separate from model reasoning. Read, output,
+  listing, scan, and file-count budgets can be raised or disabled; BeforeInvoke
+  can allow or deny registered custom tools using resolved command metadata.
 - Enforce built-in file-tool boundaries across relative/absolute paths,
-  aliases, wildcard patterns, PSDrives, and links/junctions; label limited output.
-- Added real filesystem boundary/policy checks and live empty-folder and
-  pinned-root regressions.
-
-- Moved DeepSeek to the Responses API, with PowerShell command/schema tools,
-  bounded tool rounds, effort controls, and shared progress reporting.
-- Preserve DeepSeek reasoning and tool history across interactive harness turns;
-  raw completions expose Conversation for explicit stateless continuation.
+  aliases, wildcard patterns, PSDrives, and links/junctions. Custom functions
+  remain trusted session code; ToolRoot and ToolPolicy currently apply only
+  to DeepSeek.
 - Validate registered tool names, JSON arguments, and required PowerShell
-  parameter sets before execution. Report incomplete responses and API errors.
-- Added live DeepSeek checks for function tools, schema tools, built-in commands,
-  conversation replay, interactive input, and progress/failure reporting.
-- Updated the DeepSeek guide with current models, setup, and continuation examples.
-
-- Keep model requests independent of progress-rendering failures in custom
-  PowerShell hosts. Cancellation still stops the request, and `-Verbose`
-  reports when the host cannot display progress.
-- Added offline host integration checks for normal rendering, unsupported
-  progress displays, host cancellation, and cleanup when a pipeline is stopped.
+  parameter sets before execution. Report incomplete responses, API failures,
+  and exhausted request limits explicitly; label limited tool output.
+- Keep provider requests independent of progress-rendering failures in custom
+  PowerShell hosts while preserving cancellation and verbose diagnostics.
+- Updated the DeepSeek guide, README, and provider guides with setup,
+  migration, tool policy, continuation, and progress details.
+- Added live DeepSeek tool, conversation, empty-folder, and pinned-root checks,
+  plus offline filesystem/policy and PowerShell-host integration checks.
 
 # v0.9.1
 

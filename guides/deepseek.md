@@ -1,8 +1,20 @@
 # DeepSeek
 
-PSAISuite uses DeepSeek's **Responses API** for text generation and local
+Starting in **PSAISuite v0.10.0**, DeepSeek uses the **Responses API** for text generation and local
 PowerShell function calling. It sends full conversation history on each
 request; DeepSeek does not store the conversation for later continuation.
+
+## Migrating from v0.9.x
+
+The provider now calls `/responses` instead of `/v1/chat/completions`.
+Your `DeepSeekKey` credential and normal text-returning commands stay the same.
+Choose a currently available model with tab completion instead of relying on
+older `deepseek-chat` or `deepseek-coder` examples. API failures, incomplete
+responses, and exhausted request limits now raise terminating errors.
+
+File tools default to the starting folder. Use ToolRoot when the files are in
+another directory. For manual follow-ups, reuse the full Conversation from
+Raw output so reasoning and tool results are preserved.
 
 ## Setup
 
