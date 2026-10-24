@@ -1,3 +1,30 @@
+# v0.10.0
+
+- Moved DeepSeek to the Responses API with PowerShell command/schema tools,
+  bounded requests, effort controls, and shared progress reporting.
+- Preserve DeepSeek reasoning and tool history across interactive harness turns.
+  Raw completions expose Conversation for explicit stateless continuation,
+  along with ToolRoot and IterationsUsed.
+- Default DeepSeek's built-in file tools to the starting directory. ToolRoot
+  selects another directory and remains pinned for the lifetime of a harness.
+  Empty folders no longer lead to reading unrelated locations.
+- Add a reusable local ToolPolicy, separate from model reasoning. Read, output,
+  listing, scan, and file-count budgets can be raised or disabled; BeforeInvoke
+  can allow or deny registered custom tools using resolved command metadata.
+- Enforce built-in file-tool boundaries across relative/absolute paths,
+  aliases, wildcard patterns, PSDrives, and links/junctions. Custom functions
+  remain trusted session code; ToolRoot and ToolPolicy currently apply only
+  to DeepSeek.
+- Validate registered tool names, JSON arguments, and required PowerShell
+  parameter sets before execution. Report incomplete responses, API failures,
+  and exhausted request limits explicitly; label limited tool output.
+- Keep provider requests independent of progress-rendering failures in custom
+  PowerShell hosts while preserving cancellation and verbose diagnostics.
+- Updated the DeepSeek guide, README, and provider guides with setup,
+  migration, tool policy, continuation, and progress details.
+- Added live DeepSeek tool, conversation, empty-folder, and pinned-root checks,
+  plus offline filesystem/policy and PowerShell-host integration checks.
+
 # v0.9.1
 
 - Unified OpenAI, Anthropic, and Vercel progress reporting for request rounds, waiting,

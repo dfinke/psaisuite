@@ -6,7 +6,7 @@ Invokes a completion request to a specified AI model provider.
 The Invoke-ChatCompletion function sends a prompt to a specified AI model provider and returns the completion response text by default. 
 The model provider and model name must be specified in the 'provider:model' format. The function dynamically constructs 
 the provider-specific function name and invokes it to get the response. It can also accept context via the pipeline.
-OpenAI, Anthropic, and Vercel report request rounds, tool activity, elapsed time, and
+OpenAI, Anthropic, DeepSeek, and Vercel report request rounds, tool activity, elapsed time, and
 completion/failure through PowerShell progress. Add -Verbose for an activity log.
 
 .PARAMETER Messages
@@ -28,12 +28,26 @@ An array of tool definitions for function calling. Can be:
 
 .PARAMETER MaxIterations
 The maximum number of tool-calling rounds allowed before the request stops.
-This parameter is supported by the OpenAI and Anthropic providers and defaults
+This parameter is supported by OpenAI, Anthropic, DeepSeek, and Vercel and defaults
 to 5.
+
+.PARAMETER ToolRoot
+DeepSeek file-tool boundary, defaulting to the current directory. Applies to
+the built-in Get-ChildItem and Get-Content cmdlets and their aliases. Other
+providers currently reject this parameter. Arbitrary custom functions retain
+the session's permissions; this is not an operating-system sandbox.
+
+.PARAMETER ToolPolicy
+Local tool-execution options, currently supported by DeepSeek. Configure
+MaxReadBytes, MaxOutputCharacters, MaxListedItems, MaxScanEntries, or MaxFilePaths (zero
+means unlimited), or supply BeforeInvoke, a scriptblock receiving a call
+descriptor and returning one Boolean allow/deny decision. The policy is local
+to tool execution and independent of the selected model's reasoning.
 
 .PARAMETER EffortLevel
 The provider reasoning effort level. OpenAI supports all listed values;
-Anthropic supports low, medium, high, xhigh, and max.
+Anthropic supports low, medium, high, xhigh, and max. DeepSeek maps the listed
+values to none, low, high, or max.
 
 .PARAMETER SpeedLevel
 The provider processing speed level. Anthropic maps fast and priority to its
@@ -44,6 +58,9 @@ A switch parameter that, if specified, measures and includes the elapsed time of
 
 .PARAMETER Raw
 A switch parameter that, if specified, returns the full response object (PSCustomObject) instead of just the response text.
+DeepSeek also includes Conversation: replayable Responses input items for a
+follow-up request, including tool exchanges and reasoning. Keep this history
+with the same model and tools; it is not stored on DeepSeek's server.
 
 .EXAMPLE
 $Message = New-ChatMessage -Prompt "Hello, world!"
@@ -107,6 +124,11 @@ function Invoke-ChatCompletion {
         [object]$Context,
 
         [object[]]$Tools,
+
+        [ValidateNotNullOrEmpty()]
+        [string]$ToolRoot,
+
+        [hashtable]$ToolPolicy,
 
         [ValidateRange(1, 100)]
         [int]$MaxIterations = 5,
@@ -190,16 +212,24 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
-        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -notin @('openai', 'anthropic', 'vercel')) {
-            throw "MaxIterations is currently supported only for the OpenAI, Anthropic, and Vercel providers."
+        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -notin @('openai', 'anthropic', 'deepseek', 'vercel')) {
+            throw "MaxIterations is currently supported only for the OpenAI, Anthropic, DeepSeek, and Vercel providers."
+        }
+
+        if ($PSBoundParameters.ContainsKey('ToolRoot') -or $PSBoundParameters.ContainsKey('ToolPolicy')) {
+            if ($provider -ne 'deepseek') { throw 'ToolRoot and ToolPolicy are currently supported only for the DeepSeek provider.' }
         }
 
         if ($EffortLevel -and $provider -eq 'anthropic' -and @('low', 'medium', 'high', 'xhigh', 'max') -notcontains $EffortLevel) {
             throw "Anthropic supports effort levels: low, medium, high, xhigh, and max."
         }
 
-        if (($EffortLevel -or $SpeedLevel) -and $provider -notin @('openai', 'anthropic')) {
-            throw "EffortLevel and SpeedLevel are currently supported only for the OpenAI and Anthropic providers."
+        if ($EffortLevel -and $provider -notin @('openai', 'anthropic', 'deepseek')) {
+            throw "EffortLevel is currently supported only for the OpenAI, Anthropic, and DeepSeek providers."
+        }
+
+        if ($SpeedLevel -and $provider -notin @('openai', 'anthropic')) {
+            throw "SpeedLevel is currently supported only for the OpenAI and Anthropic providers."
         }
 
         $providerFunction = "Invoke-${provider}Provider"
@@ -220,11 +250,13 @@ function Invoke-ChatCompletion {
         if ($Tools) {
             $functionParams.Tools = $Tools
         }
+        if ($PSBoundParameters.ContainsKey('ToolRoot')) { $functionParams.ToolRoot = $ToolRoot }
+        if ($PSBoundParameters.ContainsKey('ToolPolicy')) { $functionParams.ToolPolicy = $ToolPolicy }
 
-        if ($provider -in @('openai', 'anthropic', 'vercel')) {
+        if ($provider -in @('openai', 'anthropic', 'deepseek', 'vercel')) {
             $functionParams.MaxIterations = $MaxIterations
 
-            if ($EffortLevel -and $provider -in @('openai', 'anthropic')) {
+            if ($EffortLevel -and $provider -in @('openai', 'anthropic', 'deepseek')) {
                 $functionParams.EffortLevel = $EffortLevel
             }
 
@@ -236,7 +268,7 @@ function Invoke-ChatCompletion {
         $providerResult = & $providerFunction @functionParams
         $providerMetadata = $null
 
-        if ($provider -in @('openai', 'anthropic') -and $providerResult -is [PSCustomObject] -and $providerResult.PSObject.Properties['Text']) {
+        if ($provider -in @('openai', 'anthropic', 'deepseek') -and $providerResult -is [PSCustomObject] -and $providerResult.PSObject.Properties['Text']) {
             $responseText = $providerResult.Text
             $providerMetadata = $providerResult
         }
@@ -250,7 +282,7 @@ function Invoke-ChatCompletion {
         }
 
         $responseObject = [PSCustomObject]@{
-            Messages  = ($finalMessages | ConvertTo-Json -Compress)
+            Messages  = ($finalMessages | ConvertTo-Json -Depth 50 -Compress)
             Response  = $responseText
             Model     = $Model
             Provider  = $provider
@@ -259,6 +291,11 @@ function Invoke-ChatCompletion {
         }
 
         if ($providerMetadata) {
+            if ($provider -eq 'deepseek' -and $providerMetadata.PSObject.Properties['Conversation']) {
+                $responseObject | Add-Member -MemberType NoteProperty -Name 'Conversation' -Value $providerMetadata.Conversation
+                $responseObject | Add-Member -MemberType NoteProperty -Name 'ToolRoot' -Value $providerMetadata.ToolRoot
+                $responseObject | Add-Member -MemberType NoteProperty -Name 'IterationsUsed' -Value $providerMetadata.IterationsUsed
+            }
             $responseObject | Add-Member -MemberType NoteProperty -Name 'MaxIterations' -Value $providerMetadata.MaxIterations
             $responseObject | Add-Member -MemberType NoteProperty -Name 'EffortLevel' -Value $providerMetadata.RequestedEffortLevel
             $responseObject | Add-Member -MemberType NoteProperty -Name 'SpeedLevel' -Value $providerMetadata.RequestedSpeedLevel

@@ -61,9 +61,15 @@ Invoke-ChatCompletion `
     -MaxIterations 5
 ```
 
-`MaxIterations` limits successive tool-calling rounds and defaults to five.
+`MaxIterations` limits model requests, including tool rounds and the final
+answer, and defaults to five.
 Tool errors are returned to the model as tool output so it can correct an
 invalid call or explain the failure.
+
+Vercel uses the shared progress display for request rounds, waiting, tool
+starts/completions, elapsed time, and failures. Add `-Verbose` to retain the
+activity log. Progress is separate from the returned answer. ToolRoot and
+ToolPolicy currently apply only to [DeepSeek](deepseek.md).
 
 ## Provider routing
 

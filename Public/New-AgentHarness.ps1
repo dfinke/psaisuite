@@ -9,7 +9,7 @@ function New-AgentHarness {
     retains user messages and final assistant replies for follow-up turns.
     Enter exit, quit, or an empty line to end the interactive conversation.
     Use PassThru to return an editable harness without starting a conversation.
-    OpenAI, Anthropic, and Vercel show request/tool progress while running.
+    OpenAI, Anthropic, DeepSeek, and Vercel show request/tool progress while running.
     Add Verbose to retain the activity log. Progress is separate from the answer.
 
     .PARAMETER Prompt
@@ -33,6 +33,16 @@ function New-AgentHarness {
     .PARAMETER MaxIterations
     Maximum tool-calling rounds for providers that support this setting.
 
+    .PARAMETER ToolRoot
+    DeepSeek's file-tool boundary. Defaults to the directory where the harness
+    is created and stays fixed across interactive turns. It confines built-in
+    Get-ChildItem and Get-Content; custom functions retain session permissions.
+
+    .PARAMETER ToolPolicy
+    Local execution options for DeepSeek: configurable read/output/listing
+    limits and a BeforeInvoke permission callback. Does not change the model's
+    reasoning capabilities. Resource limits can be raised or disabled with zero.
+
     .EXAMPLE
     New-AgentHarness -Prompt 'List the files in the current directory.' -Tools Get-ChildItem
 
@@ -48,7 +58,9 @@ function New-AgentHarness {
 
     .NOTES
     Interactive history lasts only for this invocation. Tool exchanges are
-    handled within each request by the provider. GetResponse starts a fresh
+    handled within each request by the provider. DeepSeek also retains the
+    complete Responses conversation between interactive turns, including
+    reasoning and tool results. GetResponse starts a fresh
     conversation on each call. Tools run with the current user's permissions.
     Provider credentials and model overrides follow Invoke-ChatCompletion.
     #>
@@ -71,15 +83,31 @@ function New-AgentHarness {
         [ValidateRange(1, 100)]
         [int]$MaxIterations = 5,
 
+        [ValidateNotNullOrEmpty()]
+        [string]$ToolRoot,
+
+        [hashtable]$ToolPolicy,
+
         [Parameter(Mandatory, ParameterSetName = 'Object')]
         [switch]$PassThru
     )
 
+    $effectiveModel = if ($env:PSAISUITE_DEFAULT_MODEL) { $env:PSAISUITE_DEFAULT_MODEL } else { $Model }
+    if (($PSBoundParameters.ContainsKey('ToolRoot') -or $PSBoundParameters.ContainsKey('ToolPolicy')) -and $effectiveModel -notlike 'deepseek:*') {
+        throw 'ToolRoot and ToolPolicy are currently supported only for the DeepSeek provider.'
+    }
+    if ($effectiveModel -like 'deepseek:*') {
+        if (-not $ToolRoot) { $ToolRoot = (Get-Location).Path }
+        $policy = New-AgentToolPolicy -Root $ToolRoot -Options $ToolPolicy
+        $ToolRoot = $policy.Root
+    }
     $harness = [pscustomobject]@{
         Model         = $Model
         Tools         = $Tools
         SystemPrompt  = $SystemPrompt
         MaxIterations = $MaxIterations
+        ToolRoot      = $ToolRoot
+        ToolPolicy    = $ToolPolicy
     }
 
     $harness | Add-Member -MemberType ScriptMethod -Name GetResponse -Value {
@@ -98,6 +126,8 @@ function New-AgentHarness {
             MaxIterations = $this.MaxIterations
         }
 
+        if ($this.ToolRoot) { $parameters.ToolRoot = $this.ToolRoot }
+        if ($null -ne $this.ToolPolicy) { $parameters.ToolPolicy = $this.ToolPolicy }
         Invoke-ChatCompletion @parameters
     }
 
@@ -126,8 +156,18 @@ function New-AgentHarness {
             ErrorAction   = 'Stop'
         }
 
-        $response = Invoke-ChatCompletion @parameters
-        $messages = $parameters.Messages + @(@{ role = 'assistant'; content = $response })
-        $response
+        $effectiveModel = if ($env:PSAISUITE_DEFAULT_MODEL) { $env:PSAISUITE_DEFAULT_MODEL } else { $Model }
+        if ($effectiveModel -like 'deepseek:*') {
+            $parameters.ToolRoot = $harness.ToolRoot
+            if ($null -ne $harness.ToolPolicy) { $parameters.ToolPolicy = $harness.ToolPolicy }
+            $result = Invoke-ChatCompletion @parameters -Raw
+            $messages = @($result.Conversation)
+            $result.Response
+        }
+        else {
+            $response = Invoke-ChatCompletion @parameters
+            $messages = $parameters.Messages + @(@{ role = 'assistant'; content = $response })
+            $response
+        }
     }
 }

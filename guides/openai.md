@@ -87,8 +87,8 @@ Invoke-ChatCompletion `
     -Model 'openai:gpt-5.6'
 ```
 
-For OpenAI and Anthropic tool-calling workflows, set `-MaxIterations` to allow
-more successive tool calls. The limit defaults to 5:
+OpenAI, Anthropic, DeepSeek, and Vercel tool workflows support `-MaxIterations`.
+The limit defaults to five model requests, including the final answer:
 
 ```powershell
 $result = Invoke-ChatCompletion `
@@ -99,9 +99,9 @@ $result = Invoke-ChatCompletion `
     -Raw
 ```
 
-When using tools, `-MaxIterations` controls how many tool-calling rounds are
-allowed before the request stops. It defaults to 5 and can be increased for
-workflows that require several successive tool calls.
+When using tools, `-MaxIterations` counts model requests, including tool rounds
+and the final answer. It defaults to 5 and can be increased for longer workflows.
+ToolRoot and ToolPolicy currently apply only to [DeepSeek](deepseek.md).
 
 ## Project instructions
 
@@ -114,5 +114,5 @@ If an instruction file is removed, it is also removed from the next request.
 
 The provider reports request, tool, and instruction-refresh activity through
 PowerShell progress output. Use `-Verbose` with `Invoke-ChatCompletion` for
-timestamped diagnostic messages. Tool failures are returned to the model as
+activity messages with elapsed times. Tool failures are returned to the model as
 function output so it can correct invalid paths or arguments.

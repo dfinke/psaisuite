@@ -45,5 +45,15 @@ function Write-AgentActivity {
     Write-Verbose "[$($Activity.Provider)] $status"
 
     # A round limit is not a measure of work remaining. Use indeterminate progress.
-    Write-Progress -Id $Activity.Id -Activity $Activity.Label -Status $status -PercentComplete -1 -Completed:$Completed
+    # A custom host may be unable to render progress; that must never fail the
+    # model request or change its result. Keep pipeline cancellation observable.
+    try {
+        Write-Progress -Id $Activity.Id -Activity $Activity.Label -Status $status -PercentComplete -1 -Completed:$Completed -ErrorAction Stop
+    }
+    catch [System.Management.Automation.PipelineStoppedException] {
+        throw
+    }
+    catch {
+        Write-Verbose "[$($Activity.Provider)] Progress display unavailable: $($_.Exception.Message)"
+    }
 }

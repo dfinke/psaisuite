@@ -38,8 +38,8 @@ Describe "Invoke-ChatCompletion" {
             $commonParameters = [System.Management.Automation.PSCmdlet]::CommonParameters + [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
             $filteredParameters = $parameters | Where-Object { $commonParameters -notcontains $_.Name }
 
-            $filteredParameters.Count | Should -Be 9
-            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "MaxIterations", "EffortLevel", "SpeedLevel", "IncludeElapsedTime", "Raw")
+            $filteredParameters.Count | Should -Be 11
+            $filteredParameters.Name | Should -Be @("Messages", "Model", "Context", "Tools", "ToolRoot", "ToolPolicy", "MaxIterations", "EffortLevel", "SpeedLevel", "IncludeElapsedTime", "Raw")
         }
 
         It "Should test Context parameter is valueFromPipeline" {
@@ -241,7 +241,7 @@ Describe "Invoke-ChatCompletion" {
         It "Rejects max iterations for providers without support" {
             $message = New-ChatMessage -Prompt "Test"
             { Invoke-ChatCompletion -Messages $message -Model "google:gemini-2.0-flash" -MaxIterations 12 } |
-            Should -Throw "MaxIterations is currently supported only for the OpenAI, Anthropic, and Vercel providers."
+            Should -Throw "MaxIterations is currently supported only for the OpenAI, Anthropic, DeepSeek, and Vercel providers."
         }
     }
 

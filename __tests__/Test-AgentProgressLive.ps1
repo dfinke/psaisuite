@@ -2,7 +2,7 @@
 # Run: pwsh -NoProfile -File ./__tests__/Test-AgentProgressLive.ps1
 [CmdletBinding()]
 param(
-    [string[]]$Models = @('openai:gpt-6-luna', 'anthropic:claude-sonnet-5-5', 'vercel:openai/gpt-6-luna'),
+    [string[]]$Models = @('openai:gpt-6-luna', 'anthropic:claude-sonnet-5-5', 'vercel:openai/gpt-6-luna', 'deepseek:deepseek-flash'),
     [ValidateSet('Success', 'ToolFailure', 'Limit', 'ApiFailure')]
     [string[]]$Cases = @('Success', 'ToolFailure', 'Limit', 'ApiFailure')
 )

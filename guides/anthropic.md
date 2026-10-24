@@ -42,7 +42,8 @@ Timestamp : Sun 03 09 2025 9:23:42 AM
 ## Tool calling and iteration limits
 
 Anthropic models can call registered PowerShell tools. Use `-MaxIterations` to
-control how many successive tool-calling rounds are allowed; it defaults to 5.
+control the maximum model requests, including tool rounds and the final
+answer; it defaults to 5.
 
 ```powershell
 Invoke-ChatCompletion `
@@ -55,6 +56,15 @@ Invoke-ChatCompletion `
 Anthropic adaptive thinking can be configured with `-EffortLevel` values of
 `low`, `medium`, `high`, `xhigh`, and `max`. The `-SpeedLevel` option accepts
 `fast`, `priority`, and `flex`; `flex` maps to standard-only capacity.
+
+Requests allow 4,096 output tokens, shared by thinking and answer text. If
+that limit is reached, the provider reports truncation before executing any
+tool calls from the incomplete response.
+
+Anthropic uses the shared progress display for request rounds, waiting, tool
+starts/completions, elapsed time, and failures. Add `-Verbose` to retain the
+activity log. Progress is separate from the returned answer. ToolRoot and
+ToolPolicy currently apply only to [DeepSeek](deepseek.md).
 
 ```powershell
 Invoke-ChatCompletion `
