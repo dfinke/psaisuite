@@ -9,7 +9,7 @@ function New-AgentHarness {
     retains user messages and final assistant replies for follow-up turns.
     Enter exit, quit, or an empty line to end the interactive conversation.
     Use PassThru to return an editable harness without starting a conversation.
-    OpenAI, Anthropic, and Vercel show request/tool progress while running.
+    OpenAI, Anthropic, DeepSeek, and Vercel show request/tool progress while running.
     Add Verbose to retain the activity log. Progress is separate from the answer.
 
     .PARAMETER Prompt
@@ -48,7 +48,9 @@ function New-AgentHarness {
 
     .NOTES
     Interactive history lasts only for this invocation. Tool exchanges are
-    handled within each request by the provider. GetResponse starts a fresh
+    handled within each request by the provider. DeepSeek also retains the
+    complete Responses conversation between interactive turns, including
+    reasoning and tool results. GetResponse starts a fresh
     conversation on each call. Tools run with the current user's permissions.
     Provider credentials and model overrides follow Invoke-ChatCompletion.
     #>
@@ -126,8 +128,16 @@ function New-AgentHarness {
             ErrorAction   = 'Stop'
         }
 
-        $response = Invoke-ChatCompletion @parameters
-        $messages = $parameters.Messages + @(@{ role = 'assistant'; content = $response })
-        $response
+        $effectiveModel = if ($env:PSAISUITE_DEFAULT_MODEL) { $env:PSAISUITE_DEFAULT_MODEL } else { $Model }
+        if ($effectiveModel -like 'deepseek:*') {
+            $result = Invoke-ChatCompletion @parameters -Raw
+            $messages = @($result.Conversation)
+            $result.Response
+        }
+        else {
+            $response = Invoke-ChatCompletion @parameters
+            $messages = $parameters.Messages + @(@{ role = 'assistant'; content = $response })
+            $response
+        }
     }
 }

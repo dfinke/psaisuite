@@ -1,5 +1,15 @@
 # Unreleased
 
+- Moved DeepSeek to the Responses API, with PowerShell command/schema tools,
+  bounded tool rounds, effort controls, and shared progress reporting.
+- Preserve DeepSeek reasoning and tool history across interactive harness turns;
+  raw completions expose Conversation for explicit stateless continuation.
+- Validate registered tool names, JSON arguments, and required PowerShell
+  parameter sets before execution. Report incomplete responses and API errors.
+- Added live DeepSeek checks for function tools, schema tools, built-in commands,
+  conversation replay, interactive input, and progress/failure reporting.
+- Updated the DeepSeek guide with current models, setup, and continuation examples.
+
 - Keep model requests independent of progress-rendering failures in custom
   PowerShell hosts. Cancellation still stops the request, and `-Verbose`
   reports when the host cannot display progress.
