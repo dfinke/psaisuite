@@ -31,6 +31,7 @@ Currently supported providers are:
 
 - [Anthropic](guides/anthropic.md)
 - [Azure AI Foundry](guides/azureai.md)
+- [Cheaper Inference](guides/cheaperinference.md)
 - [DeepSeek](guides/deepseek.md)
 - [GitHub](guides/github.md)
 - [Google](guides/google.md)
