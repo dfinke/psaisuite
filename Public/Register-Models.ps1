@@ -14,6 +14,7 @@ $script:ChatCompletionProviders = @{
     novita      = @{ Tooltip = 'AI Provider: Novita' }
     poe         = @{ Tooltip = 'AI Provider: Poe' }
     vercel      = @{ Tooltip = 'AI Provider: Vercel AI Gateway' }
+    cheaperinference = @{ Tooltip = 'AI Provider: Cheaper Inference' }
 }
 
 function ConvertTo-ModelCatalogItem {
@@ -211,6 +212,17 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion', 'New-AgentHarne
                 # also includes embedding, image, video, and evaluation models.
                 $models = $response.data |
                     Where-Object { $_.type -eq 'language' } |
+                    ConvertTo-ModelCatalogItem -Provider $providerKey
+            }
+            'cheaperinference' {
+                ## Note: The public model list does not require authentication.
+                ## It also includes embedding, image, audio, and video models, so keep text models only.
+                $response = Invoke-RestMethod https://api.cheaperinference.com/public/models -Headers @{
+                    "Content-Type" = "application/json"
+                }
+
+                $models = $response.models |
+                    Where-Object { $_.model_type -eq 'text' } |
                     ConvertTo-ModelCatalogItem -Provider $providerKey
             }
 
