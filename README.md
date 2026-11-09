@@ -405,3 +405,19 @@ Note that the model name in the Invoke-ChatCompletion call uses the format - `<p
 ## Adding support for a provider
 
 documentation coming soon
+
+### Model completion for your commands
+
+`Invoke-ChatCompletion` and `New-AgentHarness` have this completion registered
+automatically. Register it for your own commands with a `-Model` parameter:
+
+```powershell
+Import-Module PSAISuite
+Register-PSAIModelCompleter -CommandName Start-AgentWorkbench
+# Multiple commands can be registered together:
+Register-PSAIModelCompleter -CommandName Start-AgentWorkbench, Invoke-MyAgent
+```
+
+Keep PSAISuite imported in the session. Provider suggestions are local; model
+suggestions query provider APIs and may require credentials. Completion is
+advisory and does not validate the supplied model.

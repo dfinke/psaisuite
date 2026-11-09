@@ -50,7 +50,24 @@ function ConvertTo-ModelCatalogItem {
     }
 }
 
-Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion', 'New-AgentHarness' -ParameterName 'Model' -ScriptBlock {
+function Register-PSAIModelCompleter {
+    <#
+    .SYNOPSIS
+    Registers PSAISuite model completion for commands with a Model parameter.
+    .DESCRIPTION
+    Reuses PSAISuite's provider and model suggestions for one or more commands.
+    PSAISuite must remain imported in the session for completion to work.
+    .EXAMPLE
+    Register-PSAIModelCompleter -CommandName Start-AgentWorkbench
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string[]]$CommandName
+    )
+
+    Register-ArgumentCompleter -CommandName $CommandName -ParameterName 'Model' -ScriptBlock {
     param(
         [string] $commandName,
         [string] $parameterName,
@@ -234,3 +251,7 @@ Register-ArgumentCompleter -CommandName 'Invoke-ChatCompletion', 'New-AgentHarne
             )
         }
 }
+
+}
+
+Register-PSAIModelCompleter -CommandName 'Invoke-ChatCompletion', 'New-AgentHarness'
