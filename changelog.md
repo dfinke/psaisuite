@@ -1,3 +1,11 @@
+# v0.10.1
+
+- Added `Register-PSAIModelCompleter` so commands with a `-Model` parameter can
+  reuse PSAISuite's provider and model suggestions. `Invoke-ChatCompletion` and
+  `New-AgentHarness` continue to register automatically.
+- Documented custom-command model completion and added coverage for provider
+  suggestions and live model catalog lookup.
+
 # v0.10.0
 
 - Moved DeepSeek to the Responses API with PowerShell command/schema tools,

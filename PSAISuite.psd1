@@ -3,7 +3,7 @@
     RootModule        = 'PSAISuite.psm1'
     
     # Version number of this module.
-    ModuleVersion     = '0.10.0'
+    ModuleVersion     = '0.10.1'
     
     # ID used to uniquely identify this module
     GUID              = 'f5a37b81-6a5a-4b5c-a6e1-2b8a5f9c2fd8'
@@ -25,6 +25,7 @@
         'Invoke-ChatCompletion'
         'New-ChatMessage'
         'New-AgentHarness'
+        'Register-PSAIModelCompleter'
         'Get-OpenRouterModel'
         'Get-GitHubModel'
         'ConvertTo-ProviderToolSchema'
