@@ -1,3 +1,9 @@
+# v0.10.2
+
+- Added configurable `MaxIterations` support to the Google provider so
+  `New-AgentHarness` and integrations such as PSAgentLab can use their limit.
+- Updated provider documentation and iteration-limit guidance.
+
 # v0.10.1
 
 - Added `Register-PSAIModelCompleter` so commands with a `-Model` parameter can
