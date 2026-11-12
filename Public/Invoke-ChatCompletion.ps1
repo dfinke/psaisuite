@@ -27,9 +27,9 @@ An array of tool definitions for function calling. Can be:
 - Array of hashtables (already defined tool schemas)
 
 .PARAMETER MaxIterations
-The maximum number of tool-calling rounds allowed before the request stops.
-This parameter is supported by OpenAI, Anthropic, DeepSeek, and Vercel and defaults
-to 5.
+The maximum number of model requests allowed before the request stops. This
+parameter is supported by OpenAI, Anthropic, DeepSeek, Google, and Vercel and
+defaults to 5.
 
 .PARAMETER ToolRoot
 DeepSeek file-tool boundary, defaulting to the current directory. Applies to
@@ -212,8 +212,8 @@ function Invoke-ChatCompletion {
             throw "Model must be specified in 'provider:model' format."
         }
 
-        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -notin @('openai', 'anthropic', 'deepseek', 'vercel')) {
-            throw "MaxIterations is currently supported only for the OpenAI, Anthropic, DeepSeek, and Vercel providers."
+        if ($PSBoundParameters.ContainsKey('MaxIterations') -and $provider -notin @('openai', 'anthropic', 'deepseek', 'google', 'vercel')) {
+            throw "MaxIterations is currently supported only for the OpenAI, Anthropic, DeepSeek, Google, and Vercel providers."
         }
 
         if ($PSBoundParameters.ContainsKey('ToolRoot') -or $PSBoundParameters.ContainsKey('ToolPolicy')) {
@@ -253,7 +253,7 @@ function Invoke-ChatCompletion {
         if ($PSBoundParameters.ContainsKey('ToolRoot')) { $functionParams.ToolRoot = $ToolRoot }
         if ($PSBoundParameters.ContainsKey('ToolPolicy')) { $functionParams.ToolPolicy = $ToolPolicy }
 
-        if ($provider -in @('openai', 'anthropic', 'deepseek', 'vercel')) {
+        if ($provider -in @('openai', 'anthropic', 'deepseek', 'google', 'vercel')) {
             $functionParams.MaxIterations = $MaxIterations
 
             if ($EffortLevel -and $provider -in @('openai', 'anthropic', 'deepseek')) {

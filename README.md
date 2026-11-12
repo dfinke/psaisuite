@@ -298,7 +298,7 @@ $messages = @(
 Invoke-ChatCompletion -Messages $messages -Model 'openai:gpt-5.6'
 ```
 
-For OpenAI, Anthropic, DeepSeek, and Vercel tool workflows, `-MaxIterations` controls the maximum
+For OpenAI, Anthropic, DeepSeek, Google, and Vercel tool workflows, `-MaxIterations` controls the maximum
 number of model requests, including tool rounds and the final answer, and defaults to 5:
 
 ```powershell

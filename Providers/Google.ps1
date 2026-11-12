@@ -16,6 +16,9 @@
 .PARAMETER Tools
     An array of tool definitions for function calling. Can be strings (command names) or hashtables.
 
+.PARAMETER MaxIterations
+    The maximum number of model requests, including tool-calling rounds and the final answer. Defaults to 5.
+
 .EXAMPLE
     $Message = New-ChatMessage -Prompt 'Explain how CRISPR works'
     $response = Invoke-GoogleProvider -ModelName 'gemini-1.5-pro' -Messages $Message
@@ -34,7 +37,9 @@ function Invoke-GoogleProvider {
         [string]$ModelName,
         [Parameter(Mandatory)]
         [hashtable[]]$Messages,
-        [object[]]$Tools
+        [object[]]$Tools,
+        [ValidateRange(1, 100)]
+        [int]$MaxIterations = 5
     )
     
     if (-not $env:GeminiKey) {
@@ -104,10 +109,9 @@ function Invoke-GoogleProvider {
 
     $Uri = "https://generativelanguage.googleapis.com/v1beta/models/$($ModelName):generateContent?key=$apiKey"
     
-    $maxIterations = 5
     $iteration = 0
 
-    while ($iteration -lt $maxIterations) {
+    while ($iteration -lt $MaxIterations) {
         $params = @{
             Uri     = $Uri
             Method  = 'POST'
@@ -199,5 +203,5 @@ function Invoke-GoogleProvider {
         $iteration++
     }
 
-    return "Maximum iterations reached without completing the response."
+    return "Maximum iterations reached without completing the response after $MaxIterations iterations."
 }
